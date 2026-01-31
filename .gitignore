@@ -1,0 +1,28 @@
+# Environment files (secrets)
+.env
+.env.*
+
+# Build artifacts
+build/
+*.o
+*.so
+*.dylib
+
+# Temporary files
+.tmp/
+*.log
+
+# Luarocks
+*.rock
+lua_modules/
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
