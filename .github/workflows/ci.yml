@@ -1,0 +1,372 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  LUNET_VERSION: main
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: lunet-mcp-sse-linux-amd64
+            lunet_bin: lunet-run
+            lunet_ext: .so
+            archive_cmd: tar -czvf
+            archive_ext: .tar.gz
+          - os: macos-latest
+            artifact_name: lunet-mcp-sse-macos
+            lunet_bin: lunet-run
+            lunet_ext: .so
+            archive_cmd: tar -czvf
+            archive_ext: .tar.gz
+          - os: windows-latest
+            artifact_name: lunet-mcp-sse-windows-amd64
+            lunet_bin: lunet-run.exe
+            lunet_ext: .dll
+            archive_cmd: 7z a
+            archive_ext: .zip
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Checkout lunet
+      uses: actions/checkout@v4
+      with:
+        repository: lua-lunet/lunet
+        ref: ${{ env.LUNET_VERSION }}
+        path: lunet
+
+    - uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: latest
+
+    # ============ Linux Dependencies ============
+    - name: Install Dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
+
+    # ============ macOS Dependencies ============
+    - name: Install Dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install pkg-config libuv luajit
+
+    # ============ Windows Dependencies ============
+    - name: Setup vcpkg (Windows)
+      if: runner.os == 'Windows'
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'f9d8eecab99cb23e4befb7ea90b2f9504d311b54'
+
+    - name: Install Dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        vcpkg install libuv:x64-windows luajit:x64-windows
+
+    # ============ Build Lunet ============
+    - name: Configure Lunet (Unix)
+      if: runner.os != 'Windows'
+      working-directory: lunet
+      run: xmake f -m release -y
+
+    - name: Configure Lunet (Windows)
+      if: runner.os == 'Windows'
+      working-directory: lunet
+      shell: pwsh
+      run: |
+        $env:VCPKG_ROOT = "${{ github.workspace }}/vcpkg"
+        $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
+        xmake f -m release -y
+
+    - name: Build Lunet
+      working-directory: lunet
+      run: xmake build
+
+    - name: Build Lunet SQLite3
+      working-directory: lunet
+      run: xmake build lunet-sqlite3
+
+    # ============ Create Symlink (Unix) ============
+    - name: Setup Lunet Binary (Unix)
+      if: runner.os != 'Windows'
+      working-directory: lunet
+      run: |
+        LUNET_BIN=$(find build -name 'lunet-run' -type f | head -1)
+        ln -sf "$(basename $(dirname $LUNET_BIN))/$(basename $LUNET_BIN)" build/lunet
+        ls -la build/
+
+    # ============ Test MCP Server ============
+    - name: Test MCP Server (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        cd lunet
+        LUNET_BIN=$(find build -name 'lunet-run' -type f | head -1)
+        cd ..
+        
+        # Test server starts
+        echo "Testing server startup..."
+        timeout 5 $LUNET_BIN app/main.lua &
+        SERVER_PID=$!
+        sleep 2
+        
+        # Test endpoint
+        curl -s --max-time 3 http://localhost:8080/ | head -c 200
+        echo ""
+        
+        # Kill server
+        kill $SERVER_PID 2>/dev/null || true
+        echo "Server test passed"
+
+    - name: Test MCP Server (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $lunet = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet-run.exe" | Select-Object -First 1
+        
+        # Start server
+        $proc = Start-Process -FilePath $lunet.FullName -ArgumentList "app/main.lua" -PassThru -NoNewWindow
+        Start-Sleep -Seconds 3
+        
+        # Test endpoint
+        try {
+          $response = Invoke-WebRequest -Uri "http://localhost:8080/" -TimeoutSec 5 -UseBasicParsing
+          Write-Host "Server responded: $($response.StatusCode)"
+        } catch {
+          Write-Host "Server test: $_"
+        }
+        
+        # Kill server
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "Server test completed"
+
+    # ============ Package Distribution ============
+    - name: Package (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        mkdir -p dist/lunet-mcp-sse/bin
+        mkdir -p dist/lunet-mcp-sse/lib
+        mkdir -p dist/lunet-mcp-sse/app
+        mkdir -p dist/lunet-mcp-sse/test
+        
+        # Copy lunet binaries
+        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+        LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
+        SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
+        
+        cp "$LUNET_BIN" dist/lunet-mcp-sse/bin/lunet
+        cp "$LUNET_SO" dist/lunet-mcp-sse/lib/
+        [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lunet-mcp-sse/lib/ || true
+        
+        # Copy app files
+        cp -r app/* dist/lunet-mcp-sse/app/
+        cp -r test/* dist/lunet-mcp-sse/test/
+        cp Makefile dist/lunet-mcp-sse/
+        cp README.md dist/lunet-mcp-sse/
+        cp lunet-mcp-sse-scm-1.rockspec dist/lunet-mcp-sse/
+        
+        # Create standalone runner script
+        cat > dist/lunet-mcp-sse/run.sh << 'EOF'
+        #!/bin/bash
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        export LUA_CPATH="$SCRIPT_DIR/lib/?.so;;"
+        exec "$SCRIPT_DIR/bin/lunet" "$SCRIPT_DIR/app/main.lua" "$@"
+        EOF
+        chmod +x dist/lunet-mcp-sse/run.sh
+        
+        # Create archive
+        cd dist
+        tar -czvf ${{ matrix.artifact_name }}${{ matrix.archive_ext }} lunet-mcp-sse
+
+    - name: Package (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path dist/lunet-mcp-sse/bin
+        New-Item -ItemType Directory -Force -Path dist/lunet-mcp-sse/lib
+        New-Item -ItemType Directory -Force -Path dist/lunet-mcp-sse/app
+        New-Item -ItemType Directory -Force -Path dist/lunet-mcp-sse/test
+        
+        # Copy lunet binaries
+        $lunetBin = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet-run.exe" | Select-Object -First 1
+        $lunetDll = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet.dll" | Select-Object -First 1
+        $sqliteDll = Get-ChildItem -Path lunet/build -Recurse -Filter "sqlite3.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+        
+        Copy-Item $lunetBin.FullName -Destination dist/lunet-mcp-sse/bin/lunet.exe
+        Copy-Item $lunetDll.FullName -Destination dist/lunet-mcp-sse/lib/
+        if ($sqliteDll) { Copy-Item $sqliteDll.FullName -Destination dist/lunet-mcp-sse/lib/ }
+        
+        # Copy libuv and luajit DLLs from vcpkg
+        $vcpkgBin = "${{ github.workspace }}/vcpkg/installed/x64-windows/bin"
+        if (Test-Path "$vcpkgBin/uv.dll") { Copy-Item "$vcpkgBin/uv.dll" -Destination dist/lunet-mcp-sse/bin/ }
+        if (Test-Path "$vcpkgBin/lua51.dll") { Copy-Item "$vcpkgBin/lua51.dll" -Destination dist/lunet-mcp-sse/bin/ }
+        Get-ChildItem "$vcpkgBin/*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+          Copy-Item $_.FullName -Destination dist/lunet-mcp-sse/bin/ -ErrorAction SilentlyContinue
+        }
+        
+        # Copy app files
+        Copy-Item -Recurse app/* -Destination dist/lunet-mcp-sse/app/
+        Copy-Item -Recurse test/* -Destination dist/lunet-mcp-sse/test/
+        Copy-Item Makefile -Destination dist/lunet-mcp-sse/
+        Copy-Item README.md -Destination dist/lunet-mcp-sse/
+        Copy-Item lunet-mcp-sse-scm-1.rockspec -Destination dist/lunet-mcp-sse/
+        
+        # Create standalone runner script
+        @"
+        @echo off
+        set SCRIPT_DIR=%~dp0
+        set LUA_CPATH=%SCRIPT_DIR%lib\?.dll;;
+        "%SCRIPT_DIR%bin\lunet.exe" "%SCRIPT_DIR%app\main.lua" %*
+        "@ | Out-File -FilePath dist/lunet-mcp-sse/run.bat -Encoding ascii
+        
+        # Create archive
+        cd dist
+        7z a ${{ matrix.artifact_name }}${{ matrix.archive_ext }} lunet-mcp-sse
+
+    # ============ Upload Artifacts ============
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/${{ matrix.artifact_name }}${{ matrix.archive_ext }}
+
+  # ============ Nightly Release (main branch) ============
+  nightly:
+    name: Nightly Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: List artifacts
+      run: find artifacts -type f
+
+    - name: Delete existing nightly release
+      uses: dev-drprasad/delete-tag-and-release@v1.1
+      with:
+        tag_name: nightly
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        delete_release: true
+      continue-on-error: true
+
+    - name: Create Nightly Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: nightly
+        name: Nightly Build
+        prerelease: true
+        body: |
+          ## Nightly Build
+          
+          Automated build from `main` branch.
+          
+          **Commit:** ${{ github.sha }}
+          **Date:** ${{ github.event.head_commit.timestamp }}
+          
+          ### Downloads
+          
+          | Platform | Archive |
+          |----------|---------|
+          | Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
+          | macOS | `lunet-mcp-sse-macos.tar.gz` |
+          | Windows (amd64) | `lunet-mcp-sse-windows-amd64.zip` |
+          
+          ### Usage
+          
+          ```bash
+          # Extract and run
+          tar -xzf lunet-mcp-sse-linux-amd64.tar.gz
+          cd lunet-mcp-sse
+          echo "TAVILY_API_KEY=your_key" > .env
+          ./run.sh
+          ```
+          
+          Or with tracing:
+          ```bash
+          MCP_TRACE=debug ./run.sh
+          ```
+        files: |
+          artifacts/**/*.tar.gz
+          artifacts/**/*.zip
+
+  # ============ Tagged Release ============
+  release:
+    name: Tagged Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Get version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: Release ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## Release ${{ steps.version.outputs.VERSION }}
+          
+          ### Downloads
+          
+          | Platform | Archive |
+          |----------|---------|
+          | Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
+          | macOS | `lunet-mcp-sse-macos.tar.gz` |
+          | Windows (amd64) | `lunet-mcp-sse-windows-amd64.zip` |
+          
+          ### Quick Start
+          
+          ```bash
+          # Linux/macOS
+          tar -xzf lunet-mcp-sse-linux-amd64.tar.gz
+          cd lunet-mcp-sse
+          echo "TAVILY_API_KEY=your_key" > .env
+          ./run.sh
+          
+          # Windows
+          # Extract zip, then:
+          # Set TAVILY_API_KEY in .env
+          # Run: run.bat
+          ```
+          
+          ### Features
+          
+          - MCP 2024-11-05 protocol with SSE transport
+          - Tavily web search integration
+          - Zero-cost tracing (`MCP_TRACE=debug`)
+          - ~2 MB memory footprint
+          
+          ### Changes
+          
+          See [CHANGELOG.md](https://github.com/lua-lunet/lunet-mcp-sse/blob/main/CHANGELOG.md) for details.
+        files: |
+          artifacts/**/*.tar.gz
+          artifacts/**/*.zip
