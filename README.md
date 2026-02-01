@@ -7,7 +7,7 @@ A minimal MCP (Model Context Protocol) server demonstrating Tavily web search vi
 - **MCP 2024-11-05** protocol support
 - **SSE transport** for real-time communication
 - **Tavily search** integration
-- **Memory-efficient** (~2 MB RSS)
+- **Memory-efficient** (TBC)
 - **Zero-cost tracing** for debugging (no overhead when disabled)
 - **Stress testing** and benchmarking tools
 
