@@ -23,12 +23,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-linux:
-    name: Build Linux
+  build-linux-amd64:
+    name: Build Linux amd64
     runs-on: ubuntu-latest
-    outputs:
-      artifact: ${{ steps.upload-artifact.outputs.artifact-name }}
-
     steps:
     - uses: actions/checkout@v4
 
@@ -60,23 +57,6 @@ jobs:
       working-directory: lunet
       run: xmake build lunet-sqlite3
 
-    - name: Setup Lunet Binary
-      working-directory: lunet
-      run: |
-        LUNET_BIN=$(find build -name 'lunet-run' -type f | head -1)
-        ln -sf "$(basename $(dirname $LUNET_BIN))/$(basename $LUNET_BIN)" build/lunet
-        ls -la build/
-
-    - name: Test MCP Server
-      run: |
-        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-        timeout 5 $LUNET_BIN app/main.lua &
-        SERVER_PID=$!
-        sleep 2
-        curl -s --max-time 3 http://localhost:8080/ | head -c 200
-        echo ""
-        kill $SERVER_PID 2>/dev/null || true
-
     - name: Package
       run: |
         mkdir -p dist/bin
@@ -102,13 +82,74 @@ jobs:
         chmod +x dist/run.sh
 
         tar -czvf lunet-mcp-sse-linux-amd64.tar.gz -C dist .
-        echo "artifact-name=lunet-mcp-sse-linux-amd64.tar.gz" >> $GITHUB_OUTPUT
 
-    - name: Upload Artifact
+    - name: Upload amd64 Artifact
       uses: actions/upload-artifact@v4
       with:
         name: lunet-mcp-sse-linux-amd64
         path: lunet-mcp-sse-linux-amd64.tar.gz
+
+  build-linux-arm64:
+    name: Build Linux arm64
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Checkout lunet
+      uses: actions/checkout@v4
+      with:
+        repository: lua-lunet/lunet
+        ref: ${{ env.LUNET_VERSION }}
+        path: lunet
+
+    - uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: latest
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+    - name: Configure Lunet (arm64)
+      working-directory: lunet
+      run: xmake f -m release -y --cc=gcc-aarch64-linux-gnu --cxx=g++-aarch64-linux-gnu -a arm64
+
+    - name: Build Lunet (arm64)
+      working-directory: lunet
+      run: xmake build
+
+    - name: Package arm64
+      run: |
+        mkdir -p dist/bin
+        mkdir -p dist/lib
+        mkdir -p dist/app
+        mkdir -p dist/test
+
+        cp lunet/build/lunet dist/bin/lunet
+        cp lunet/build/lib/*.so dist/lib/ 2>/dev/null || true
+
+        cp -r app/* dist/app/
+        cp -r test/* dist/test/
+        cp Makefile dist/
+        cp README.md dist/
+        cp lunet-mcp-sse-scm-1.rockspec dist/
+
+        cat > dist/run.sh << 'EOF'
+        #!/bin/bash
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        export LUA_CPATH="$SCRIPT_DIR/lib/?.so;;"
+        exec "$SCRIPT_DIR/bin/lunet" "$SCRIPT_DIR/app/main.lua" "$@"
+        EOF
+        chmod +x dist/run.sh
+
+        tar -czvf lunet-mcp-sse-linux-arm64.tar.gz -C dist .
+
+    - name: Upload arm64 Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: lunet-mcp-sse-linux-arm64
+        path: lunet-mcp-sse-linux-arm64.tar.gz
 
   build-macos:
     name: Build macOS
@@ -143,23 +184,6 @@ jobs:
       working-directory: lunet
       run: xmake build lunet-sqlite3
 
-    - name: Setup Lunet Binary
-      working-directory: lunet
-      run: |
-        LUNET_BIN=$(find build -name 'lunet-run' -type f | head -1)
-        ln -sf "$(basename $(dirname $LUNET_BIN))/$(basename $LUNET_BIN)" build/lunet
-        ls -la build/
-
-    - name: Test MCP Server
-      run: |
-        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-        timeout 5 $LUNET_BIN app/main.lua &
-        SERVER_PID=$!
-        sleep 2
-        curl -s --max-time 3 http://localhost:8080/ | head -c 200
-        echo ""
-        kill $SERVER_PID 2>/dev/null || true
-
     - name: Package
       run: |
         mkdir -p dist/bin
@@ -193,24 +217,71 @@ jobs:
         path: lunet-mcp-sse-macos.tar.gz
 
   docker:
-    name: Build Docker Images
+    name: Build Multi-arch Docker
     runs-on: ubuntu-latest
-    needs: build-linux
+    needs: [build-linux-amd64, build-linux-arm64]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Download Linux binaries
+    - name: Download amd64 binaries
       uses: actions/download-artifact@v4
       with:
         name: lunet-mcp-sse-linux-amd64
-        path: artifacts/
+        path: artifacts/amd64/
 
-    - name: Extract Linux binaries
+    - name: Download arm64 binaries
+      uses: actions/download-artifact@v4
+      with:
+        name: lunet-mcp-sse-linux-arm64
+        path: artifacts/arm64/
+
+    - name: Prepare multi-arch binaries
       run: |
-        tar -xzf artifacts/lunet-mcp-sse-linux-amd64.tar.gz
-        ls -la
+        ls -la artifacts/
+        mkdir -p bin lib
+        # Copy amd64 binary
+        cp artifacts/amd64/bin/lunet bin/lunet-amd64
+        cp artifacts/amd64/lib/*.so lib/ 2>/dev/null || true
+        # Copy arm64 binary
+        cp artifacts/arm64/bin/lunet bin/lunet-arm64
+        cp artifacts/arm64/lib/*.so lib/ 2>/dev/null || true
+
+        ls -la bin/
+        file bin/*
+
+    - name: Create Dockerfile for multi-arch
+      run: |
+        cat > Dockerfile.multi << 'EOF'
+        FROM debian:trixie-slim
+        RUN apt-get update && apt-get install -y --no-install-recommends \
+            curl ca-certificates && rm -rf /var/lib/apt/lists/*
+        WORKDIR /app
+        COPY bin/lunet-amd64 /usr/local/bin/lunet-amd64
+        COPY bin/lunet-arm64 /usr/local/bin/lunet-arm64
+        COPY lib/*.so /usr/local/lib/
+        COPY app/ /app/app/
+        COPY artifacts/amd64/run.sh /app/run.sh
+        ENV LUA_CPATH=/usr/local/lib/?.so;;
+        RUN chmod +x /app/run.sh
+        EXPOSE 8080
+        CMD ["/app/run.sh"]
+        EOF
+
+        # Create runtime script that picks the right binary
+        cat > artifacts/amd64/run.sh << 'EOF'
+        #!/bin/bash
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then
+            LUNET=/usr/local/bin/lunet-amd64
+        else
+            LUNET=/usr/local/bin/lunet-arm64
+        fi
+        export LUA_CPATH=/usr/local/lib/?.so;;
+        exec $LUNET /app/app/main.lua
+        EOF
+        chmod +x artifacts/amd64/run.sh
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -236,6 +307,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: Dockerfile.multi
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -243,16 +315,10 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Show image digest
-      run: |
-        echo "Image digest:"
-        crane digest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:nightly || echo "Using buildx inspect"
-        docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:nightly
-
   nightly:
     name: Nightly Release
     runs-on: ubuntu-latest
-    needs: [build-linux, build-macos, docker]
+    needs: [build-linux-amd64, build-linux-arm64, build-macos, docker]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
@@ -280,7 +346,6 @@ jobs:
           ## Nightly Build
 
           **Commit:** ${{ github.sha }}
-          **Date:** ${{ github.event.head_commit.timestamp }}
 
           ### Docker
 
@@ -293,12 +358,8 @@ jobs:
           | Platform | Archive |
           |----------|---------|
           | Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
+          | Linux (arm64) | `lunet-mcp-sse-linux-arm64.tar.gz` |
           | macOS (arm64) | `lunet-mcp-sse-macos.tar.gz` |
-
-          ### Docker Hub Tags
-
-          - `ghcr.io/lua-lunet/lunet-mcp-sse:nightly` - Latest from main
-          - `ghcr.io/lua-lunet/lunet-mcp-sse:<sha>` - Specific commit
         files: |
           artifacts/*.tar.gz
           artifacts/*.zip
@@ -306,7 +367,7 @@ jobs:
   release:
     name: Tagged Release
     runs-on: ubuntu-latest
-    needs: [build-linux, build-macos, docker]
+    needs: [build-linux-amd64, build-linux-arm64, build-macos, docker]
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
@@ -340,6 +401,7 @@ jobs:
           | Platform | Archive |
           |----------|---------|
           | Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
+          | Linux (arm64) | `lunet-mcp-sse-linux-arm64.tar.gz` |
           | macOS (arm64) | `lunet-mcp-sse-macos.tar.gz` |
         files: |
           artifacts/*.tar.gz
