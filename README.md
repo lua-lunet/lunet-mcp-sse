@@ -7,25 +7,122 @@ A minimal MCP (Model Context Protocol) server demonstrating Tavily web search vi
 - **MCP 2024-11-05** protocol support
 - **SSE transport** for real-time communication
 - **Tavily search** integration
-- **Memory-efficient** (TBC)
+- **Memory-efficient** (~2 MB RSS)
 - **Zero-cost tracing** for debugging (no overhead when disabled)
-- **Stress testing** and benchmarking tools
+- **Cross-platform** binaries (Linux amd64/arm64, macOS arm64, Windows amd64)
 
-## Quick Start
+## Downloads
+
+Pre-built binaries are available from [GitHub Releases](https://github.com/lua-lunet/lunet-mcp-sse/releases/tag/nightly):
+
+| Platform | Archive |
+|----------|---------|
+| Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
+| Linux (arm64) | `lunet-mcp-sse-linux-arm64.tar.gz` |
+| macOS (arm64) | `lunet-mcp-sse-macos.tar.gz` |
+| Windows (amd64) | `lunet-mcp-sse-windows-amd64.zip` |
+
+## Running
+
+### macOS (arm64)
 
 ```bash
-# 1. Clone the lua-lunet org repos (lunet-mcp-sse requires sibling lunet repo)
-mkdir lua-lunet && cd lua-lunet
-git clone https://github.com/lua-lunet/lunet.git
-git clone https://github.com/lua-lunet/lunet-mcp-sse.git
+# Download and extract
+curl -L -o lunet-mcp-sse-macos.tar.gz \
+  https://github.com/lua-lunet/lunet-mcp-sse/releases/download/nightly/lunet-mcp-sse-macos.tar.gz
+tar -xzf lunet-mcp-sse-macos.tar.gz
 
-# 2. Build lunet
-cd lunet && make build && cd ..
-
-# 3. Set up API key and run
-cd lunet-mcp-sse
+# Set up API key
 echo "TAVILY_API_KEY=your_key_here" > .env
-make run
+
+# Run
+./run.sh
+```
+
+### Linux (Debian/Ubuntu)
+
+```bash
+# Install dependencies
+sudo apt-get update
+sudo apt-get install -y libuv1 libluajit-5.1-2 curl
+
+# Download and extract (use arm64 or amd64 as appropriate)
+curl -L -o lunet-mcp-sse-linux-arm64.tar.gz \
+  https://github.com/lua-lunet/lunet-mcp-sse/releases/download/nightly/lunet-mcp-sse-linux-arm64.tar.gz
+tar -xzf lunet-mcp-sse-linux-arm64.tar.gz
+
+# Set up API key
+echo "TAVILY_API_KEY=your_key_here" > .env
+
+# Run
+./run.sh
+```
+
+### Windows (amd64)
+
+```powershell
+# Download and extract the zip from GitHub releases
+# Then in the extracted directory:
+
+# Set up API key
+echo TAVILY_API_KEY=your_key_here > .env
+
+# Run
+.\run.bat
+```
+
+## Testing with Docker
+
+You can run the Linux binary in a Docker container. This is useful for testing on macOS or other platforms.
+
+```bash
+# Start a container with the binary mounted
+docker run -d --name mcp-server -p 8080:8080 \
+  -v /path/to/extracted/linux-app:/app -w /app \
+  debian:trixie-slim \
+  /bin/bash -c 'apt-get update -qq && apt-get install -y -qq libuv1 libluajit-5.1-2 curl >/dev/null 2>&1 && export $(cat .env | xargs) && HOST=0.0.0.0 ./bin/lunet --dangerously-skip-loopback-restriction app/main.lua'
+
+# Test
+curl http://localhost:8080/
+
+# Stop
+docker stop mcp-server && docker rm mcp-server
+```
+
+### macOS with Colima
+
+On macOS, use [Colima](https://github.com/abiosoft/colima) to run Linux arm64 containers:
+
+```bash
+# Start Colima
+colima start
+
+# Download and extract the Linux arm64 build
+curl -L -o lunet-mcp-sse-linux-arm64.tar.gz \
+  https://github.com/lua-lunet/lunet-mcp-sse/releases/download/nightly/lunet-mcp-sse-linux-arm64.tar.gz
+mkdir -p linux-app
+tar -xzf lunet-mcp-sse-linux-arm64.tar.gz -C linux-app
+
+# Copy into Colima VM
+colima ssh -- mkdir -p /tmp/testapp
+tar -czf - -C linux-app . | colima ssh -- tar -xzf - -C /tmp/testapp
+
+# Copy your .env
+echo "TAVILY_API_KEY=your_key_here" | colima ssh -- tee /tmp/testapp/.env
+
+# Run the server
+docker run -d --name mcp-server -p 8080:8080 \
+  -v /tmp/testapp:/app -w /app \
+  debian:trixie-slim \
+  /bin/bash -c 'apt-get update -qq && apt-get install -y -qq libuv1 libluajit-5.1-2 curl >/dev/null 2>&1 && export $(cat .env | xargs) && HOST=0.0.0.0 ./bin/lunet --dangerously-skip-loopback-restriction app/main.lua'
+
+# Test from macOS
+curl http://localhost:8080/
+./test_tavily.sh
+
+# Cleanup
+docker stop mcp-server && docker rm mcp-server
+colima stop
 ```
 
 ## Endpoints
@@ -42,14 +139,11 @@ make run
 # Check server info
 curl http://localhost:8080/
 
-# Connect to SSE stream
+# Run Tavily search test
+./test_tavily.sh
+
+# Connect to SSE stream manually
 curl -N http://localhost:8080/sse
-
-# Run stress test (server must be running)
-make stress
-
-# Run memory benchmark
-make bench
 ```
 
 ## MCP Protocol Flow
@@ -80,143 +174,53 @@ Search the web using Tavily AI search engine.
 }
 ```
 
-## Memory Usage
-
-Measured on macOS with LuaJIT + libuv:
-
-| Implementation | RSS |
-|----------------|-----|
-| Pure Lua stdio | ~1.6 MB |
-| Lunet SSE server | ~2.2 MB |
-
-The ~0.6 MB overhead is from libuv and TCP socket handling.
-
-## Project Structure
-
-```
-lua-lunet/                # GitHub org directory
-├── lunet/                # Lunet framework (sibling repo)
-├── lunet-mcp-sse/        # This repo
-│   ├── app/
-│   │   ├── main.lua      # MCP-SSE server
-│   │   └── trace.lua     # Zero-cost tracing module
-│   ├── test/
-│   │   ├── stress_mcp.lua    # Connection stress test
-│   │   ├── bench_memory.lua  # Memory benchmark
-│   │   └── bench.sh          # Shell-based benchmark
-│   ├── .env              # API keys (not committed)
-│   └── Makefile
-└── lunet-realworld-example-app/  # Another sibling repo
-```
-
-## Zero-Cost Tracing
-
-The server includes a zero-cost tracing system that has **no overhead when disabled**. 
-When `MCP_TRACE` is not set (or set to `0`/`off`), all trace calls compile to empty 
-functions via LuaJIT's dead code elimination.
-
-### Trace Levels
-
-| Level | Name | Description |
-|-------|------|-------------|
-| 0 | off | No tracing (default, zero overhead) |
-| 1 | error | Errors only |
-| 2 | warn | Warnings and above |
-| 3 | info | Informational messages (sessions, tools) |
-| 4 | debug | Debug messages (HTTP requests, MCP methods) |
-| 5 | trace | All messages including fine-grained tracing |
-
-### Usage Examples
-
-```bash
-# No tracing (production, zero overhead)
-../lunet/build/lunet app/main.lua
-
-# Info level - see sessions and tool calls
-MCP_TRACE=info ../lunet/build/lunet app/main.lua
-
-# Debug level - see HTTP requests and MCP methods
-MCP_TRACE=debug ../lunet/build/lunet app/main.lua
-
-# Full tracing - all messages
-MCP_TRACE=trace ../lunet/build/lunet app/main.lua
-
-# Write traces to file
-MCP_TRACE=debug MCP_TRACE_FILE=server.log ../lunet/build/lunet app/main.lua
-
-# Or use make targets
-make run          # No tracing
-make run-info     # Info level
-make run-debug    # Debug level
-make run-trace    # Full tracing
-```
-
-### Trace Output Format
-
-```
-[timestamp] [LEVEL] [CATEGORY] message
-```
-
-Example output at `debug` level:
-```
-[0.001] [INFO] [SERVER] Starting on port 8080
-[0.052] [DEBUG] [HTTP] GET /
-[0.103] [DEBUG] [HTTP] GET /sse
-[0.104] [INFO] [SSE] Session abc123 connected
-[0.205] [DEBUG] [MCP] Request: method=initialize id=1
-[0.310] [DEBUG] [HTTP] POST /message
-[0.311] [DEBUG] [MCP] Request: method=tools/call id=2
-[0.312] [INFO] [TOOL] Calling tool: tavily-search
-```
-
-### Trace Categories
-
-| Category | Description |
-|----------|-------------|
-| SERVER | Server lifecycle events |
-| HTTP | HTTP request handling |
-| SSE | SSE session management |
-| MCP | MCP JSON-RPC protocol |
-| TOOL | Tool invocations |
-| CONFIG | Configuration issues |
-
-### Programmatic Usage
-
-```lua
-local trace = require("app.trace")
-
--- Check if level is enabled (for expensive operations)
-if trace.is_enabled("debug") then
-    trace.debug("CAT", "Expensive data: %s", json_encode(big_table))
-end
-
--- Get statistics
-local stats = trace.get_stats()
-print("Total messages:", stats.messages)
-
--- Dump statistics at shutdown
-trace.dump_stats()
-```
-
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TAVILY_API_KEY` | - | Tavily API key (required) |
 | `PORT` | 8080 | Server port |
-| `MCP_TRACE` | off | Trace level (see Tracing section) |
+| `HOST` | 127.0.0.1 | Bind address (use 0.0.0.0 for Docker) |
+| `MCP_TRACE` | off | Trace level (off/error/warn/info/debug/trace) |
 | `MCP_TRACE_FILE` | stderr | Output file for traces |
-| `STRESS_CLIENTS` | 20 | Concurrent clients for stress test |
-| `STRESS_REQUESTS` | 10 | Requests per client |
-| `BENCH_CLIENTS` | 50 | Clients for memory benchmark |
-| `BENCH_DURATION` | 10 | Benchmark duration (seconds) |
 
-## Requirements
+## Building from Source
 
-- LuaJIT 2.1+
-- libuv 1.x
-- curl (for Tavily API calls)
-- xmake (for building Lunet)
+```bash
+# Clone the lua-lunet org repos (lunet-mcp-sse requires sibling lunet repo)
+mkdir lua-lunet && cd lua-lunet
+git clone https://github.com/lua-lunet/lunet.git
+git clone https://github.com/lua-lunet/lunet-mcp-sse.git
+
+# Build lunet
+cd lunet && make build && cd ..
+
+# Run
+cd lunet-mcp-sse
+echo "TAVILY_API_KEY=your_key_here" > .env
+make run
+```
+
+## Zero-Cost Tracing
+
+The server includes a zero-cost tracing system that has **no overhead when disabled**.
+
+```bash
+# No tracing (production, zero overhead)
+./run.sh
+
+# Info level - see sessions and tool calls
+MCP_TRACE=info ./run.sh
+
+# Debug level - see HTTP requests and MCP methods
+MCP_TRACE=debug ./run.sh
+```
+
+## Memory Usage
+
+| Implementation | RSS |
+|----------------|-----|
+| Lunet SSE server | ~2.2 MB |
 
 ## License
 
