@@ -1,16 +1,19 @@
 FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+ARG TARGETARCH
+
 RUN mkdir -p /app/bin /app/lib
 
-COPY bin/lunet /app/bin/lunet
-COPY lib/ /app/lib/
+COPY dist/${TARGETARCH}/bin/lunet /app/bin/lunet
+COPY dist/${TARGETARCH}/lib/ /app/lib/
+
 COPY app/ /app/app/
 COPY run.sh /app/run.sh
 
