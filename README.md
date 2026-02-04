@@ -2,12 +2,34 @@
 
 A minimal MCP (Model Context Protocol) server demonstrating Tavily web search via SSE transport, built on the [Lunet](https://github.com/lua-lunet/lunet) framework.
 
+## Why Lunet?
+
+MCP servers are often deployed as sidecar processes or in resource-constrained environments. This implementation prioritizes:
+
+- **Minimal footprint** - 7 MB runtime memory vs 14-28 MB for Node/Bun/Python
+- **Small image size** - 171 MB Docker image vs 367-420 MB for alternatives
+- **Stable dependencies** - libuv and LuaJIT are mature, battle-tested libraries with Debian LTS support
+- **No dependency churn** - No npm/pip ecosystem overhead or constant security patches
+
+### Performance Comparison
+
+Run `./compare.sh` to reproduce these benchmarks:
+
+| Implementation | Docker Image | Runtime Memory |
+|----------------|--------------|----------------|
+| **lunet-mcp-sse** | **171 MB** | **7 MB** |
+| tavily-mcp (Node.js) | 420 MB | 18 MB |
+| tavily-mcp (Bun) | 382 MB | 14 MB |
+| FastMCP (Python) | 367 MB | 28 MB |
+
+lunet-mcp-sse uses **2.5x less memory** than Node.js, **2x less** than Bun, and **4x less** than Python.
+
 ## Features
 
 - **MCP 2024-11-05** protocol support
 - **SSE transport** for real-time communication
 - **Tavily search** integration
-- **Memory-efficient** (~2 MB RSS)
+- **Memory-efficient** (~7 MB RSS in Docker, ~2 MB native)
 - **Zero-cost tracing** for debugging (no overhead when disabled)
 - **Cross-platform** binaries (Linux amd64/arm64, macOS arm64, Windows amd64)
 
@@ -216,11 +238,18 @@ MCP_TRACE=info ./run.sh
 MCP_TRACE=debug ./run.sh
 ```
 
-## Memory Usage
+## Benchmarking
 
-| Implementation | RSS |
-|----------------|-----|
-| Lunet SSE server | ~2.2 MB |
+Compare memory and image size against other MCP implementations:
+
+```bash
+./compare.sh
+```
+
+This tests against:
+- `tavily-mcp` (Node.js via npx)
+- `tavily-mcp` (Bun)
+- FastMCP (Python)
 
 ## License
 
