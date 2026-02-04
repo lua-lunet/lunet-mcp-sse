@@ -1,0 +1,17 @@
+.git
+.gitignore
+.github
+.github/*
+*.md
+Dockerfile*
+docker-compose*
+docker_test/
+.tmp/
+dist/
+artifacts/
+*.tar.gz
+*.zip
+Makefile
+*.rockspec
+*.lua
+!.env
