@@ -653,7 +653,8 @@ math.randomseed(os.time())
 -- Main server
 lunet.spawn(function()
     local port = tonumber(getenv("PORT")) or 8080
-    local listener, err = socket.listen("tcp", "127.0.0.1", port)
+    local host = getenv("HOST") or "127.0.0.1"
+    local listener, err = socket.listen("tcp", host, port)
     if not listener then
         trace.error("SERVER", "Cannot listen on port %d: %s", port, err or "unknown")
         print("FATAL: Cannot listen: " .. (err or "unknown"))
@@ -665,7 +666,7 @@ lunet.spawn(function()
     print("==========================")
     print("Protocol: MCP " .. MCP_VERSION)
     print("Server:   " .. SERVER_NAME .. " v" .. SERVER_VERSION)
-    print("Port:     http://127.0.0.1:" .. port)
+    print("Port:     http://" .. host .. ":" .. port)
     print("")
     print("Endpoints:")
     print("  GET  /       -> Server info")

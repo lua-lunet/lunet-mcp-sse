@@ -251,17 +251,34 @@ print("[STRESS] MCP-SSE Stress Test")
 print(string.format("[STRESS] Target: http://%s:%d", HOST, PORT))
 print(string.format("[STRESS] Config: %d clients x %d requests", NUM_CLIENTS, REQUESTS_PER_CLIENT))
 
--- Check server is running
-local check_resp, check_err = http_request("GET", "/")
-if not check_resp then
-    print("[STRESS] FATAL: Server not running at " .. HOST .. ":" .. PORT)
-    print("[STRESS] Start the server first: ./lunet/build/lunet app/main.lua")
-    os.exit(1)
-end
-
-print("[STRESS] Server is running, starting stress test...")
-
 local completed_workers = 0
+
+-- Check server is running (spawned)
+lunet.spawn(function()
+    local check_resp, check_err = http_request("GET", "/")
+    if not check_resp then
+        print("[STRESS] FATAL: Server not running at " .. HOST .. ":" .. PORT)
+        print("[STRESS] Start the server first: ./lunet/build/lunet app/main.lua")
+        os.exit(1)
+    end
+
+    print("[STRESS] Server is running, starting stress test...")
+
+    -- Start workers
+    stats.start_time = os.clock()
+
+    for i = 1, NUM_CLIENTS do
+        lunet.spawn(function()
+            worker(i)
+            completed_workers = completed_workers + 1
+            
+            if completed_workers % 5 == 0 then
+                io.write(".")
+                io.flush()
+            end
+        end)
+    end
+end)
 
 -- Watchdog
 lunet.spawn(function()
@@ -279,23 +296,13 @@ lunet.spawn(function()
     end
 end)
 
--- Start workers
-stats.start_time = os.clock()
-
-for i = 1, NUM_CLIENTS do
-    lunet.spawn(function()
-        worker(i)
-        completed_workers = completed_workers + 1
-        
-        if completed_workers % 5 == 0 then
-            io.write(".")
-            io.flush()
-        end
-    end)
-end
-
 -- Wait for completion
 lunet.spawn(function()
+    -- Wait for start
+    while stats.start_time == 0 do
+        lunet.sleep(50)
+    end
+    
     while completed_workers < NUM_CLIENTS do
         lunet.sleep(50)
     end
