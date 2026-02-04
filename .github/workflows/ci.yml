@@ -283,7 +283,7 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: 'f9e8eecab99cb23e4befb7ea90b2f9504d311b54'
+          vcpkgGitCommitId: 'f9d8eecab99cb23e4befb7ea90b2f9504d311b54'
 
       - name: Install Dependencies
         run: vcpkg install libuv:x64-windows luajit:x64-windows
