@@ -15,408 +15,419 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 env:
   LUNET_VERSION: main
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-linux-amd64:
     name: Build Linux amd64
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Checkout lunet
-      uses: actions/checkout@v4
-      with:
-        repository: lua-lunet/lunet
-        ref: ${{ env.LUNET_VERSION }}
-        path: lunet
+      - name: Checkout lunet
+        uses: actions/checkout@v4
+        with:
+          repository: lua-lunet/lunet
+          ref: ${{ env.LUNET_VERSION }}
+          path: lunet
 
-    - uses: xmake-io/github-action-setup-xmake@v1
-      with:
-        xmake-version: latest
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
 
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
 
-    - name: Configure Lunet
-      working-directory: lunet
-      run: xmake f -m release -y
+      - name: Configure Lunet
+        working-directory: lunet
+        run: xmake f -m release -y
 
-    - name: Build Lunet
-      working-directory: lunet
-      run: xmake build
+      - name: Build Lunet
+        working-directory: lunet
+        run: xmake build
 
-    - name: Build Lunet SQLite3
-      working-directory: lunet
-      run: xmake build lunet-sqlite3
+      - name: Build Lunet SQLite3
+        working-directory: lunet
+        run: xmake build lunet-sqlite3
 
-    - name: Test MCP Server
-      run: |
-        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-        timeout 5 $LUNET_BIN app/main.lua &
-        SERVER_PID=$!
-        sleep 2
-        curl -s --max-time 3 http://localhost:8080/ | head -c 200
-        echo ""
-        kill $SERVER_PID 2>/dev/null || true
+      - name: Test MCP Server
+        run: |
+          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          timeout 5 $LUNET_BIN app/main.lua &
+          SERVER_PID=$!
+          sleep 2
+          curl -s --max-time 3 http://localhost:8080/ | head -c 200
+          echo ""
+          kill $SERVER_PID 2>/dev/null || true
 
-    - name: Package
-      run: |
-        mkdir -p dist/bin
-        mkdir -p dist/lib
-        mkdir -p dist/app
-        mkdir -p dist/test
+      - name: Package
+        run: |
+          mkdir -p dist/bin
+          mkdir -p dist/lib
+          mkdir -p dist/app
+          mkdir -p dist/test
 
-        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-        LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
-        SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
+          SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
 
-        cp "$LUNET_BIN" dist/bin/lunet
-        [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
-        [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          cp "$LUNET_BIN" dist/bin/lunet
+          [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
+          [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
 
-        cp -r app/* dist/app/
-        cp -r test/* dist/test/
-        cp Makefile dist/
-        cp README.md dist/
-        cp lunet-mcp-sse-scm-1.rockspec dist/
+          cp -r app/* dist/app/
+          cp -r test/* dist/test/
+          cp Makefile dist/
+          cp README.md dist/
+          cp lunet-mcp-sse-scm-1.rockspec dist/
 
-        cat > dist/run.sh << 'EOF'
-        #!/bin/bash
-        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-        export LUA_CPATH="$SCRIPT_DIR/lib/?.so;;"
-        exec "$SCRIPT_DIR/bin/lunet" "$SCRIPT_DIR/app/main.lua" "$@"
-        EOF
-        chmod +x dist/run.sh
+          cat > dist/run.sh << 'EOF'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          export LUA_CPATH="$SCRIPT_DIR/lib/?.so;;"
+          exec "$SCRIPT_DIR/bin/lunet" "$SCRIPT_DIR/app/main.lua" "$@"
+          EOF
+          chmod +x dist/run.sh
 
-        tar -czvf lunet-mcp-sse-linux-amd64.tar.gz -C dist .
+          tar -czvf lunet-mcp-sse-linux-amd64.tar.gz -C dist .
 
-    - name: Upload amd64 Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: lunet-mcp-sse-linux-amd64
-        path: lunet-mcp-sse-linux-amd64.tar.gz
+      - name: Upload amd64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lunet-mcp-sse-linux-amd64
+          path: lunet-mcp-sse-linux-amd64.tar.gz
 
   build-linux-arm64:
     name: Build Linux arm64
     runs-on: ubuntu-24.04-arm
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Checkout lunet
-      uses: actions/checkout@v4
-      with:
-        repository: lua-lunet/lunet
-        ref: ${{ env.LUNET_VERSION }}
-        path: lunet
+      - name: Checkout lunet
+        uses: actions/checkout@v4
+        with:
+          repository: lua-lunet/lunet
+          ref: ${{ env.LUNET_VERSION }}
+          path: lunet
 
-    - uses: xmake-io/github-action-setup-xmake@v1
-      with:
-        xmake-version: latest
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
 
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
 
-    - name: Configure Lunet
-      working-directory: lunet
-      run: xmake f -m release -y
+      - name: Configure Lunet
+        working-directory: lunet
+        run: xmake f -m release -y
 
-    - name: Build Lunet
-      working-directory: lunet
-      run: xmake build
+      - name: Build Lunet
+        working-directory: lunet
+        run: xmake build
 
-    - name: Build Lunet SQLite3
-      working-directory: lunet
-      run: xmake build lunet-sqlite3
+      - name: Build Lunet SQLite3
+        working-directory: lunet
+        run: xmake build lunet-sqlite3
 
-    - name: Test MCP Server
-      run: |
-        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-        timeout 5 $LUNET_BIN app/main.lua &
-        SERVER_PID=$!
-        sleep 2
-        curl -s --max-time 3 http://localhost:8080/ | head -c 200
-        echo ""
-        kill $SERVER_PID 2>/dev/null || true
+      - name: Test MCP Server
+        run: |
+          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          timeout 5 $LUNET_BIN app/main.lua &
+          SERVER_PID=$!
+          sleep 2
+          curl -s --max-time 3 http://localhost:8080/ | head -c 200
+          echo ""
+          kill $SERVER_PID 2>/dev/null || true
 
-    - name: Package arm64
-      run: |
-        mkdir -p dist/bin
-        mkdir -p dist/lib
-        mkdir -p dist/app
-        mkdir -p dist/test
+      - name: Package arm64
+        run: |
+          mkdir -p dist/bin
+          mkdir -p dist/lib
+          mkdir -p dist/app
+          mkdir -p dist/test
 
-        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-        LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
-        SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
+          SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
 
-        cp "$LUNET_BIN" dist/bin/lunet
-        [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
-        [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          cp "$LUNET_BIN" dist/bin/lunet
+          [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
+          [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
 
-        cp -r app/* dist/app/
-        cp -r test/* dist/test/
-        cp Makefile dist/
-        cp README.md dist/
-        cp lunet-mcp-sse-scm-1.rockspec dist/
+          cp -r app/* dist/app/
+          cp -r test/* dist/test/
+          cp Makefile dist/
+          cp README.md dist/
+          cp lunet-mcp-sse-scm-1.rockspec dist/
 
-        cat > dist/run.sh << 'EOF'
-        #!/bin/bash
-        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-        export LUA_CPATH="$SCRIPT_DIR/lib/?.so;;"
-        exec "$SCRIPT_DIR/bin/lunet" "$SCRIPT_DIR/app/main.lua" "$@"
-        EOF
-        chmod +x dist/run.sh
+          cat > dist/run.sh << 'EOF'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          export LUA_CPATH="$SCRIPT_DIR/lib/?.so;;"
+          exec "$SCRIPT_DIR/bin/lunet" "$SCRIPT_DIR/app/main.lua" "$@"
+          EOF
+          chmod +x dist/run.sh
 
-        tar -czvf lunet-mcp-sse-linux-arm64.tar.gz -C dist .
+          tar -czvf lunet-mcp-sse-linux-arm64.tar.gz -C dist .
 
-    - name: Upload arm64 Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: lunet-mcp-sse-linux-arm64
-        path: lunet-mcp-sse-linux-arm64.tar.gz
+      - name: Upload arm64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lunet-mcp-sse-linux-arm64
+          path: lunet-mcp-sse-linux-arm64.tar.gz
 
   build-macos:
     name: Build macOS
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Checkout lunet
-      uses: actions/checkout@v4
-      with:
-        repository: lua-lunet/lunet
-        ref: ${{ env.LUNET_VERSION }}
-        path: lunet
+      - name: Checkout lunet
+        uses: actions/checkout@v4
+        with:
+          repository: lua-lunet/lunet
+          ref: ${{ env.LUNET_VERSION }}
+          path: lunet
 
-    - uses: xmake-io/github-action-setup-xmake@v1
-      with:
-        xmake-version: latest
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
 
-    - name: Install Dependencies
-      run: brew install pkg-config libuv luajit
+      - name: Install Dependencies
+        run: brew install pkg-config libuv luajit
 
-    - name: Configure Lunet
-      working-directory: lunet
-      run: xmake f -m release -y
+      - name: Configure Lunet
+        working-directory: lunet
+        run: xmake f -m release -y
 
-    - name: Build Lunet
-      working-directory: lunet
-      run: xmake build
+      - name: Build Lunet
+        working-directory: lunet
+        run: xmake build
 
-    - name: Build Lunet SQLite3
-      working-directory: lunet
-      run: xmake build lunet-sqlite3
+      - name: Build Lunet SQLite3
+        working-directory: lunet
+        run: xmake build lunet-sqlite3
 
-    - name: Test MCP Server
-      run: |
-        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-        timeout 5 $LUNET_BIN app/main.lua &
-        SERVER_PID=$!
-        sleep 2
-        curl -s --max-time 3 http://localhost:8080/ | head -c 200
-        echo ""
-        kill $SERVER_PID 2>/dev/null || true
+      - name: Test MCP Server
+        run: |
+          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          timeout 5 $LUNET_BIN app/main.lua &
+          SERVER_PID=$!
+          sleep 2
+          curl -s --max-time 3 http://localhost:8080/ | head -c 200
+          echo ""
+          kill $SERVER_PID 2>/dev/null || true
 
-    - name: Package
-      run: |
-        mkdir -p dist/bin
-        mkdir -p dist/lib
-        mkdir -p dist/app
-        mkdir -p dist/test
+      - name: Package
+        run: |
+          mkdir -p dist/bin
+          mkdir -p dist/lib
+          mkdir -p dist/app
+          mkdir -p dist/test
 
-        LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-        LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
-        SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
+          SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
 
-        cp "$LUNET_BIN" dist/bin/lunet
-        [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
-        [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          cp "$LUNET_BIN" dist/bin/lunet
+          [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
+          [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
 
-        cp -r app/* dist/app/
-        cp -r test/* dist/test/
-        cp Makefile dist/
-        cp README.md dist/
-        cp lunet-mcp-sse-scm-1.rockspec dist/
+          cp -r app/* dist/app/
+          cp -r test/* dist/test/
+          cp Makefile dist/
+          cp README.md dist/
+          cp lunet-mcp-sse-scm-1.rockspec dist/
 
-        cat > dist/run.sh << 'EOF'
-        #!/bin/bash
-        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-        export LUA_CPATH="$SCRIPT_DIR/lib/?.so;;"
-        exec "$SCRIPT_DIR/bin/lunet" "$SCRIPT_DIR/app/main.lua" "$@"
-        EOF
-        chmod +x dist/run.sh
+          cat > dist/run.sh << 'EOF'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          export LUA_CPATH="$SCRIPT_DIR/lib/?.so;;"
+          exec "$SCRIPT_DIR/bin/lunet" "$SCRIPT_DIR/app/main.lua" "$@"
+          EOF
+          chmod +x dist/run.sh
 
-        tar -czvf lunet-mcp-sse-macos.tar.gz -C dist .
+          tar -czvf lunet-mcp-sse-macos.tar.gz -C dist .
 
-    - name: Upload macOS Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: lunet-mcp-sse-macos
-        path: lunet-mcp-sse-macos.tar.gz
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lunet-mcp-sse-macos
+          path: lunet-mcp-sse-macos.tar.gz
 
-  docker:
-    name: Build Multi-arch Docker
-    runs-on: ubuntu-latest
-    needs: [build-linux-amd64, build-linux-arm64]
+  build-windows:
+    name: Build Windows amd64
+    runs-on: windows-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download amd64 binaries
-      uses: actions/download-artifact@v4
-      with:
-        name: lunet-mcp-sse-linux-amd64
-        path: artifacts/amd64/
+      - name: Checkout lunet
+        uses: actions/checkout@v4
+        with:
+          repository: lua-lunet/lunet
+          ref: ${{ env.LUNET_VERSION }}
+          path: lunet
 
-    - name: Download arm64 binaries
-      uses: actions/download-artifact@v4
-      with:
-        name: lunet-mcp-sse-linux-arm64
-        path: artifacts/arm64/
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
 
-    - name: Extract linux artifacts
-      run: |
-        mkdir -p dist/amd64 dist/arm64
-        tar -xzf artifacts/amd64/lunet-mcp-sse-linux-amd64.tar.gz -C dist/amd64
-        tar -xzf artifacts/arm64/lunet-mcp-sse-linux-arm64.tar.gz -C dist/arm64
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 'f9e8eecab99cb23e4befb7ea90b2f9504d311b54'
 
-        ls -la dist/amd64 dist/arm64
+      - name: Install Dependencies
+        run: vcpkg install libuv:x64-windows luajit:x64-windows
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      - name: Configure Lunet
+        working-directory: lunet
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = "${{ github.workspace }}/vcpkg"
+          $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
+          xmake f -m release -y
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Build Lunet
+        working-directory: lunet
+        run: xmake build
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Lunet SQLite3
+        working-directory: lunet
+        run: xmake build lunet-sqlite3
 
-    - name: Extract metadata for Docker
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=sha
-          type=ref,event=branch
-          type=raw,value=nightly,enable=eq(${{ github.ref }}, 'refs/heads/main')
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path dist/lib | Out-Null
+          New-Item -ItemType Directory -Force -Path dist/app | Out-Null
+          New-Item -ItemType Directory -Force -Path dist/test | Out-Null
 
-    - name: Build and push multi-arch Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: Dockerfile.multi
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        platforms: linux/amd64,linux/arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+          $lunetBin = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet-run.exe" | Select-Object -First 1
+          $lunetDll = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet.dll" | Select-Object -First 1
+          $sqliteDll = Get-ChildItem -Path lunet/build -Recurse -Filter "sqlite3.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+          Copy-Item $lunetBin.FullName -Destination dist/bin/lunet.exe
+          Copy-Item $lunetDll.FullName -Destination dist/lib/
+          if ($sqliteDll) { Copy-Item $sqliteDll.FullName -Destination dist/lib/ }
+
+          $vcpkgBin = "${{ github.workspace }}/vcpkg/installed/x64-windows/bin"
+          if (Test-Path $vcpkgBin) {
+            Get-ChildItem "$vcpkgBin/*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+              Copy-Item $_.FullName -Destination dist/bin/ -ErrorAction SilentlyContinue
+            }
+          }
+
+          Copy-Item -Recurse app/* -Destination dist/app/
+          Copy-Item -Recurse test/* -Destination dist/test/
+          Copy-Item Makefile -Destination dist/
+          Copy-Item README.md -Destination dist/
+          Copy-Item lunet-mcp-sse-scm-1.rockspec -Destination dist/
+
+          @"
+          @echo off
+          set SCRIPT_DIR=%~dp0
+          set LUA_CPATH=%SCRIPT_DIR%lib\?.dll;;
+          \"%SCRIPT_DIR%bin\lunet.exe\" \"%SCRIPT_DIR%app\main.lua\" %*
+          "@ | Out-File -FilePath dist/run.bat -Encoding ascii
+
+          Push-Location dist
+          7z a ../lunet-mcp-sse-windows-amd64.zip .
+          Pop-Location
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lunet-mcp-sse-windows-amd64
+          path: lunet-mcp-sse-windows-amd64.zip
 
   nightly:
     name: Nightly Release
     runs-on: ubuntu-latest
-    needs: [build-linux-amd64, build-linux-arm64, build-macos, docker]
+    needs: [build-linux-amd64, build-linux-arm64, build-macos, build-windows]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-        merge-multiple: true
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
-    - name: Delete existing nightly release
-      uses: dev-drprasad/delete-tag-and-release@v1.1
-      with:
-        tag_name: nightly
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        delete_release: true
-      continue-on-error: true
+      - name: Delete existing nightly release
+        uses: dev-drprasad/delete-tag-and-release@v1.1
+        with:
+          tag_name: nightly
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          delete_release: true
+        continue-on-error: true
 
-    - name: Create Nightly Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: nightly
-        name: Nightly Build
-        prerelease: true
-        body: |
-          ## Nightly Build
+      - name: Create Nightly Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          prerelease: true
+          body: |
+            ## Nightly Build
 
-          **Commit:** ${{ github.sha }}
+            **Commit:** ${{ github.sha }}
 
-          ### Docker
+            ### Binaries
 
-          ```bash
-          docker run -p 8080:8080 -e TAVILY_API_KEY=your_key ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:nightly
-          ```
-
-          ### Binaries
-
-          | Platform | Archive |
-          |----------|---------|
-          | Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
-          | Linux (arm64) | `lunet-mcp-sse-linux-arm64.tar.gz` |
-          | macOS (arm64) | `lunet-mcp-sse-macos.tar.gz` |
-        files: |
-          artifacts/*.tar.gz
-          artifacts/*.zip
+            | Platform | Archive |
+            |----------|---------|
+            | Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
+            | Linux (arm64) | `lunet-mcp-sse-linux-arm64.tar.gz` |
+            | macOS (arm64) | `lunet-mcp-sse-macos.tar.gz` |
+            | Windows (amd64) | `lunet-mcp-sse-windows-amd64.zip` |
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
 
   release:
     name: Tagged Release
     runs-on: ubuntu-latest
-    needs: [build-linux-amd64, build-linux-arm64, build-macos, docker]
+    needs: [build-linux-amd64, build-linux-arm64, build-macos, build-windows]
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-        merge-multiple: true
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
-    - name: Get version from tag
-      id: version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        name: Release ${{ steps.version.outputs.VERSION }}
-        body: |
-          ## Release ${{ steps.version.outputs.VERSION }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.version.outputs.VERSION }}
+          body: |
+            ## Release ${{ steps.version.outputs.VERSION }}
 
-          ### Docker
+            ### Binaries
 
-          ```bash
-          docker run -p 8080:8080 -e TAVILY_API_KEY=your_key ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
-          ```
-
-          ### Binaries
-
-          | Platform | Archive |
-          |----------|---------|
-          | Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
-          | Linux (arm64) | `lunet-mcp-sse-linux-arm64.tar.gz` |
-          | macOS (arm64) | `lunet-mcp-sse-macos.tar.gz` |
-        files: |
-          artifacts/*.tar.gz
-          artifacts/*.zip
+            | Platform | Archive |
+            |----------|---------|
+            | Linux (amd64) | `lunet-mcp-sse-linux-amd64.tar.gz` |
+            | Linux (arm64) | `lunet-mcp-sse-linux-arm64.tar.gz` |
+            | macOS (arm64) | `lunet-mcp-sse-macos.tar.gz` |
+            | Windows (amd64) | `lunet-mcp-sse-windows-amd64.zip` |
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
