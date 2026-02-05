@@ -175,6 +175,14 @@ curl -N http://localhost:8080/sse
 3. Client POSTs JSON-RPC messages to `/message?session=<id>`
 4. Server responds via SSE events on the GET connection
 
+There is no HTTPS termination support in this repo by design. 
+If you want to run a public-facing MCP SSE you can trivially
+deploy this code with nginx as a sidecar else on a private cloud 
+network behind a cloud load balancer. That is The Unix Way of piping 
+data between specialist tools. It gives you the “QMail Security Model” 
+where dealing protocol attacks is process segregated from any 
+business logic. 
+
 ## Tools Available
 
 ### tavily-search
