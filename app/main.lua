@@ -5,7 +5,7 @@
 -- via SSE transport. Uses the Lunet framework for async I/O.
 --
 -- Usage:
---   luajit app/main.lua
+--   luajit app/main.lua [-v]
 --   # or via make:
 --   make run
 --
@@ -24,6 +24,19 @@
 
 io.stdout:setvbuf('no')
 io.stderr:setvbuf('no')
+
+local function is_verbose(argv)
+    if type(argv) ~= "table" then return false end
+    for i = 1, #argv do
+        local value = argv[i]
+        if value == "-v" or value == "--verbose" then
+            return true
+        end
+    end
+    return false
+end
+
+local verbose = is_verbose(arg)
 
 local lunet = require("lunet")
 local socket = require("lunet.socket")
@@ -58,8 +71,10 @@ end
 load_env_file(".env")
 local TAVILY_API_KEY = getenv("TAVILY_API_KEY")
 if not TAVILY_API_KEY then
-    print("WARNING: TAVILY_API_KEY not set. Tavily search will fail.")
     trace.warn("CONFIG", "TAVILY_API_KEY not set")
+    if verbose then
+        io.stderr:write("WARNING: TAVILY_API_KEY not set. Tavily search will fail.\n")
+    end
 end
 
 -- JSON encoder/decoder (minimal implementation)
@@ -650,18 +665,7 @@ end
 -- Initialize random seed
 math.randomseed(os.time())
 
--- Main server
-lunet.spawn(function()
-    local port = tonumber(getenv("PORT")) or 8080
-    local host = getenv("HOST") or "127.0.0.1"
-    local listener, err = socket.listen("tcp", host, port)
-    if not listener then
-        trace.error("SERVER", "Cannot listen on port %d: %s", port, err or "unknown")
-        print("FATAL: Cannot listen: " .. (err or "unknown"))
-        return
-    end
-
-    trace.info("SERVER", "Starting on port %d", port)
+local function print_startup_info(host, port)
     print("MCP-SSE Tavily Demo Server")
     print("==========================")
     print("Protocol: MCP " .. MCP_VERSION)
@@ -678,6 +682,23 @@ lunet.spawn(function()
     print("Test:")
     print("  curl http://localhost:" .. port .. "/")
     print("  curl -N http://localhost:" .. port .. "/sse")
+end
+
+-- Main server
+lunet.spawn(function()
+    local port = tonumber(getenv("PORT")) or 8080
+    local host = getenv("HOST") or "127.0.0.1"
+    local listener, err = socket.listen("tcp", host, port)
+    if not listener then
+        trace.error("SERVER", "Cannot listen on port %d: %s", port, err or "unknown")
+        print("FATAL: Cannot listen: " .. (err or "unknown"))
+        return
+    end
+
+    trace.info("SERVER", "Starting on port %d", port)
+    if verbose then
+        print_startup_info(host, port)
+    end
 
     while true do
         local client = socket.accept(listener)

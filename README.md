@@ -57,8 +57,10 @@ tar -xzf lunet-mcp-sse-macos.tar.gz
 # Set up API key
 echo "TAVILY_API_KEY=your_key_here" > .env
 
-# Run
+# Run (silent by default)
 ./run.sh
+# Startup info
+./run.sh -v
 ```
 
 ### Linux (Debian/Ubuntu)
@@ -76,8 +78,10 @@ tar -xzf lunet-mcp-sse-linux-arm64.tar.gz
 # Set up API key
 echo "TAVILY_API_KEY=your_key_here" > .env
 
-# Run
+# Run (silent by default)
 ./run.sh
+# Startup info
+./run.sh -v
 ```
 
 ### Windows (amd64)
@@ -238,6 +242,8 @@ The server includes a zero-cost tracing system that has **no overhead when disab
 ```bash
 # No tracing (production, zero overhead)
 ./run.sh
+# Add -v to print startup info
+./run.sh -v
 
 # Info level - see sessions and tool calls
 MCP_TRACE=info ./run.sh
