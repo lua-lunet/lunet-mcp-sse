@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .tiles {
+      display: flex;
+      gap: 1rem;
+      font-family: system-ui, sans-serif;
+    }
+    .tile {
+      padding: 1rem 1.2rem;
+      border-radius: 8px;
+      color: #111;
+      font-weight: 600;
+      min-width: 140px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+    }
+
+    /* Strong alert */
+    .tile-red {
+      background: #FF4D4D;
+      color: #fff;
+    }
+
+    /* Attention without panic */
+    .tile-amber {
+      background: #FFA500;
+      color: #111;
+    }
+
+    /* High‑visibility but friendly */
+    .tile-yellow {
+      background: #FFEB3B;
+      color: #111;
+    }
+
+    /* Brand‑safe highlight */
+    .tile-blue {
+      background: #2196F3;
+      color: #fff;
+    }
+
+    /* Subtle but focused */
+    .tile-border {
+      background: #FFFFFF;
+      border: 3px solid #FFA500;
+    }
+  </style>
+</head>
+<body>
+  <div class="tiles">
+    <div class="tile tile-red">Urgent / Error</div>
+    <div class="tile tile-amber">Needs Attention</div>
+    <div class="tile tile-yellow">Highlighted</div>
+    <div class="tile tile-blue">Primary Action</div>
+    <div class="tile tile-border">Subtle Highlight</div>
+  </div>
+</body>
+</html>

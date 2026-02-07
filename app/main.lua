@@ -342,7 +342,83 @@ local function shell_escape(s)
     return "'" .. s:gsub("'", "'\\''") .. "'"
 end
 
--- Tavily API call via curl (no TLS in Lunet yet)
+-- Parse URL into components
+local function parse_url(url)
+    local protocol, host, port, path = url:match("^(https?)://([^:/]+):?(%d*)(/?.*)$")
+    if not protocol then
+        return nil, "Invalid URL"
+    end
+    port = tonumber(port) or (protocol == "https" and 443 or 80)
+    path = path == "" and "/" or path
+    return {protocol = protocol, host = host, port = port, path = path}
+end
+
+-- Async HTTP POST using lunet sockets (for HTTP only, not HTTPS)
+local function http_post_async(url, body, headers)
+    local parsed, err = parse_url(url)
+    if not parsed then
+        return nil, err
+    end
+    
+    if parsed.protocol == "https" then
+        -- Fall back to curl for HTTPS (no TLS in lunet)
+        return nil, "HTTPS_FALLBACK"
+    end
+    
+    -- Resolve localhost to 127.0.0.1 (lunet socket doesn't do DNS)
+    local connect_host = parsed.host
+    if connect_host == "localhost" then
+        connect_host = "127.0.0.1"
+    end
+    
+    local client, conn_err = socket.connect(connect_host, parsed.port)
+    if not client then
+        return nil, "Connection failed: " .. (conn_err or "unknown")
+    end
+    
+    -- Build HTTP request
+    local req_lines = {
+        "POST " .. parsed.path .. " HTTP/1.1",
+        "Host: " .. parsed.host .. ":" .. parsed.port,
+        "Content-Type: application/json",
+        "Content-Length: " .. #body,
+        "Connection: close",
+    }
+    
+    for name, value in pairs(headers or {}) do
+        req_lines[#req_lines + 1] = name .. ": " .. value
+    end
+    
+    req_lines[#req_lines + 1] = ""
+    req_lines[#req_lines + 1] = body
+    
+    local request = table.concat(req_lines, "\r\n")
+    
+    local write_err = socket.write(client, request)
+    if write_err then
+        socket.close(client)
+        return nil, "Write failed: " .. tostring(write_err)
+    end
+    
+    -- Read response (lunet socket.read is async)
+    local response = socket.read(client)
+    socket.close(client)
+    
+    if not response then
+        return nil, "No response received"
+    end
+    
+    -- Parse HTTP response
+    local body_start = response:find("\r\n\r\n")
+    if not body_start then
+        return nil, "Invalid HTTP response"
+    end
+    
+    local response_body = response:sub(body_start + 4)
+    return response_body
+end
+
+-- Tavily API call - async for HTTP, curl fallback for HTTPS
 local function tavily_search(query, max_results)
     if not TAVILY_API_KEY then
         return nil, "TAVILY_API_KEY not configured"
@@ -356,18 +432,32 @@ local function tavily_search(query, max_results)
         search_depth = "basic",
     })
 
-    local cmd = "curl -s -X POST 'https://api.tavily.com/search' " ..
-                "-H 'Content-Type: application/json' " ..
-                "-H " .. shell_escape("Authorization: Bearer " .. TAVILY_API_KEY) .. " " ..
-                "-d " .. shell_escape(request_body)
+    local api_url = getenv("TAVILY_API_URL") or "https://api.tavily.com/search"
+    local headers = {
+        ["Authorization"] = "Bearer " .. TAVILY_API_KEY,
+    }
+    
+    -- Try async HTTP first
+    local response, err = http_post_async(api_url, request_body, headers)
+    
+    -- Fall back to curl for HTTPS
+    if err == "HTTPS_FALLBACK" then
+        trace.debug("HTTP", "Using curl fallback for HTTPS")
+        local cmd = "curl -s -X POST '" .. api_url .. "' " ..
+                    "-H 'Content-Type: application/json' " ..
+                    "-H " .. shell_escape("Authorization: Bearer " .. TAVILY_API_KEY) .. " " ..
+                    "-d " .. shell_escape(request_body)
 
-    local handle = io.popen(cmd)
-    if not handle then
-        return nil, "Failed to execute curl"
+        local handle = io.popen(cmd)
+        if not handle then
+            return nil, "Failed to execute curl"
+        end
+
+        response = handle:read("*a")
+        handle:close()
+    elseif not response then
+        return nil, err or "Request failed"
     end
-
-    local response = handle:read("*a")
-    handle:close()
 
     if not response or response == "" then
         return nil, "Empty response from Tavily API"
