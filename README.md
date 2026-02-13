@@ -1,5 +1,7 @@
 # lunet-mcp-sse
 
+[![Lunet v0.1.2](https://img.shields.io/badge/Lunet-v0.1.2-blue?logo=lua&logoColor=white)](https://github.com/lua-lunet/lunet/releases/tag/v0.1.2)
+
 A minimal MCP (Model Context Protocol) server demonstrating Tavily web search via SSE transport, built on the [Lunet](https://github.com/lua-lunet/lunet) framework.
 
 ## Why Lunet?
@@ -244,6 +246,10 @@ The server includes a zero-cost tracing system that has **no overhead when disab
 ```bash
 # No tracing (production, zero overhead)
 ./run.sh
+
+# Verbose startup - show server banner
+./run.sh -v
+# or: ./run.sh --verbose
 
 # Info level - see sessions and tool calls
 MCP_TRACE=info ./run.sh
