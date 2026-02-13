@@ -27,7 +27,7 @@ description = {
 
 dependencies = {
     "lua >= 5.1",
-    "lunet >= scm-1",
+    "lunet >= 0.1.2",
 }
 
 build = {

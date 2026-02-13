@@ -1,10 +1,12 @@
 # lunet-mcp-sse Makefile
 #
 # A demo MCP-SSE server for Tavily search using the Lunet framework.
-# Assumes lunet is a sibling directory (../lunet)
+# Assumes lunet is a sibling directory (../lunet).
+# Uses xmake per https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md
 
 LUNET_DIR := ../lunet
-LUNET_BIN := $(LUNET_DIR)/build/lunet
+# Lazy evaluation: find lunet-run after build (canonical xmake output path)
+LUNET_BIN = $(shell find $(LUNET_DIR)/build -path '*/release/lunet-run*' -type f 2>/dev/null | head -1)
 
 # Default timeout for commands (seconds)
 TIMEOUT := 10
@@ -16,32 +18,31 @@ TIMEOUT_CMD := $(shell command -v gtimeout 2>/dev/null || command -v timeout 2>/
 
 all: help
 
-# Build lunet if needed
-$(LUNET_BIN):
+# Build lunet with xmake (canonical release profile)
+build:
 	@echo "Building lunet..."
-	cd $(LUNET_DIR) && $(MAKE) build
-
-build: $(LUNET_BIN)
-	@echo "Build complete. Lunet binary: $(LUNET_BIN)"
+	cd $(LUNET_DIR) && xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y && xmake build
+	cd $(LUNET_DIR) && xmake build lunet-sqlite3
+	@echo "Build complete. Lunet binary: $(shell find $(LUNET_DIR)/build -path '*/release/lunet-run*' -type f 2>/dev/null | head -1)"
 
 # Run the MCP server (no tracing)
-run: $(LUNET_BIN)
+run: build
 	$(LUNET_BIN) app/main.lua
 
 # Run with info-level tracing
-run-info: $(LUNET_BIN)
+run-info: build
 	MCP_TRACE=info $(LUNET_BIN) app/main.lua
 
 # Run with debug-level tracing
-run-debug: $(LUNET_BIN)
+run-debug: build
 	MCP_TRACE=debug $(LUNET_BIN) app/main.lua
 
 # Run with full tracing
-run-trace: $(LUNET_BIN)
+run-trace: build
 	MCP_TRACE=trace $(LUNET_BIN) app/main.lua
 
 # Run with custom port
-run-port: $(LUNET_BIN)
+run-port: build
 	PORT=$(PORT) $(LUNET_BIN) app/main.lua
 
 # Test the server (must be running) - with timeout
@@ -68,7 +69,7 @@ stress-shell:
 	@echo "Done"
 
 # Lua stress test (server must be running) - with timeout
-stress: $(LUNET_BIN)
+stress: build
 ifneq ($(TIMEOUT_CMD),)
 	$(TIMEOUT_CMD) 60 $(LUNET_BIN) test/stress_mcp.lua || echo "Stress test timed out or failed"
 else
@@ -77,7 +78,7 @@ else
 endif
 
 # Memory benchmark (starts its own server) - with timeout
-bench: $(LUNET_BIN)
+bench: build
 ifneq ($(TIMEOUT_CMD),)
 	$(TIMEOUT_CMD) 30 $(LUNET_BIN) test/bench_memory.lua || echo "Benchmark timed out or failed"
 else
@@ -86,7 +87,7 @@ else
 endif
 
 # Run benchmark with more clients
-bench-heavy: $(LUNET_BIN)
+bench-heavy: build
 ifneq ($(TIMEOUT_CMD),)
 	BENCH_CLIENTS=100 BENCH_REQUESTS=50 $(TIMEOUT_CMD) 60 $(LUNET_BIN) test/bench_memory.lua || echo "Heavy benchmark timed out or failed"
 else
@@ -100,7 +101,7 @@ clean:
 
 # Deep clean (including lunet build)
 clean-all: clean
-	cd $(LUNET_DIR) && $(MAKE) clean 2>/dev/null || true
+	cd $(LUNET_DIR) && xmake clean 2>/dev/null || true
 	@echo "Cleaned all build artifacts"
 
 # Show help
