@@ -216,14 +216,20 @@ Search the web using Tavily AI search engine.
 
 ## Building from Source
 
+Requires [xmake](https://xmake.io/) and Lunet v0.1.2+. See [XMAKE_INTEGRATION.md](https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md) for the canonical integration guide.
+
 ```bash
 # Clone the lua-lunet org repos (lunet-mcp-sse requires sibling lunet repo)
 mkdir lua-lunet && cd lua-lunet
 git clone https://github.com/lua-lunet/lunet.git
 git clone https://github.com/lua-lunet/lunet-mcp-sse.git
 
-# Build lunet
-cd lunet && make build && cd ..
+# Build lunet with xmake (canonical release profile)
+cd lunet
+xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
+xmake build
+xmake build lunet-sqlite3
+cd ..
 
 # Run
 cd lunet-mcp-sse
