@@ -216,8 +216,12 @@ mkdir lua-lunet && cd lua-lunet
 git clone https://github.com/lua-lunet/lunet.git
 git clone https://github.com/lua-lunet/lunet-mcp-sse.git
 
-# Build lunet
-cd lunet && make build && cd ..
+# Checkout Lunet v0.2.3 and build via xmake (per docs/XMAKE_INTEGRATION.md)
+cd lunet
+git checkout v0.2.3
+xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
+xmake build lunet-bin
+cd ..
 
 # Run
 cd lunet-mcp-sse

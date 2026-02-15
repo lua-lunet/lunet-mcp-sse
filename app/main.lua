@@ -19,8 +19,8 @@
 --   curl -N http://localhost:8080/sse
 --
 -- Tracing:
---   MCP_TRACE=info ./lunet/build/lunet app/main.lua
---   MCP_TRACE=debug ./lunet/build/lunet app/main.lua
+--   MCP_TRACE=info ./lunet/build/<platform>/<arch>/release/lunet-run app/main.lua
+--   MCP_TRACE=debug ./lunet/build/<platform>/<arch>/release/lunet-run app/main.lua
 
 io.stdout:setvbuf('no')
 io.stderr:setvbuf('no')

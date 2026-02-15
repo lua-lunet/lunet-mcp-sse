@@ -195,14 +195,15 @@ start_lunet() {
 
 	cd "$(dirname "$0")"
 
-	# Use the built binary if available
+	# Prefer release bundle binary; otherwise resolve/build lunet-run via xmake.
 	local lunet_bin
 	if [[ -x ".tmp/macos-app/bin/lunet" ]]; then
 		lunet_bin=".tmp/macos-app/bin/lunet"
-	elif [[ -x "./lunet/build/lunet" ]]; then
-		lunet_bin="./lunet/build/lunet"
 	else
-		error "No lunet binary found"
+		lunet_bin=$(LUNET_DIR="${LUNET_DIR:-../lunet}" LUNET_VERSION="${LUNET_VERSION:-v0.2.3}" ./scripts/lunet_bin.sh --build 2>/dev/null || true)
+	fi
+	if [[ -z "$lunet_bin" ]]; then
+		error "No lunet binary found (.tmp bundle or xmake-built lunet-run)"
 		return 1
 	fi
 
