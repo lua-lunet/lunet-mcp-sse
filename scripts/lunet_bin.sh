@@ -2,7 +2,7 @@
 set -euo pipefail
 
 LUNET_DIR="${LUNET_DIR:-../lunet}"
-LUNET_VERSION="${LUNET_VERSION:-v0.2.3}"
+LUNET_REF="${LUNET_REF:-codex/httpc-libcurl}"
 DO_BUILD=0
 
 while [[ $# -gt 0 ]]; do
@@ -24,15 +24,15 @@ if [[ ! -d "$LUNET_DIR/.git" ]]; then
 	exit 1
 fi
 
-if ! git -C "$LUNET_DIR" rev-parse "$LUNET_VERSION" >/dev/null 2>&1; then
-	echo "ERROR: required lunet tag $LUNET_VERSION not found in $LUNET_DIR" >&2
-	echo "Run: git -C \"$LUNET_DIR\" fetch --tags" >&2
+if ! git -C "$LUNET_DIR" rev-parse "$LUNET_REF" >/dev/null 2>&1; then
+	echo "ERROR: required lunet ref $LUNET_REF not found in $LUNET_DIR" >&2
+	echo "Run: git -C \"$LUNET_DIR\" fetch --all --tags" >&2
 	exit 1
 fi
 
-if ! git -C "$LUNET_DIR" merge-base --is-ancestor "$LUNET_VERSION" HEAD; then
-	echo "ERROR: lunet checkout is older than $LUNET_VERSION in $LUNET_DIR" >&2
-	echo "Run: git -C \"$LUNET_DIR\" checkout $LUNET_VERSION" >&2
+if ! git -C "$LUNET_DIR" merge-base --is-ancestor "$LUNET_REF" HEAD; then
+	echo "ERROR: lunet checkout does not include required ref $LUNET_REF in $LUNET_DIR" >&2
+	echo "Run: git -C \"$LUNET_DIR\" checkout $LUNET_REF && git -C \"$LUNET_DIR\" pull --ff-only" >&2
 	exit 1
 fi
 
