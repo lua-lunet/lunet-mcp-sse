@@ -211,26 +211,14 @@ Search the web using Tavily AI search engine.
 ## Building from Source
 
 ```bash
-# Clone the lua-lunet org repos (lunet-mcp-sse requires sibling lunet repo)
-mkdir lua-lunet && cd lua-lunet
-git clone https://github.com/lua-lunet/lunet.git
+# Clone and init submodules
 git clone https://github.com/lua-lunet/lunet-mcp-sse.git
-
-# Checkout Lunet HTTP client feature branch and build via xmake
-cd lunet
-git checkout codex/httpc-libcurl
-git pull --ff-only
-xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
-xmake build lunet-bin
-cd ..
+cd lunet-mcp-sse
+git submodule update --init --recursive
 
 # Run
-cd lunet-mcp-sse
 echo "TAVILY_API_KEY=your_key_here" > .env
 make run
-
-# Optional: override Lunet ref/path when needed
-# LUNET_REF=codex/httpc-libcurl LUNET_DIR=../lunet make run
 ```
 
 ## Zero-Cost Tracing

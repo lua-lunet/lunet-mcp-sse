@@ -200,7 +200,7 @@ start_lunet() {
 	if [[ -x ".tmp/macos-app/bin/lunet" ]]; then
 		lunet_bin=".tmp/macos-app/bin/lunet"
 	else
-		lunet_bin=$(LUNET_DIR="${LUNET_DIR:-../lunet}" LUNET_REF="${LUNET_REF:-codex/httpc-libcurl}" ./scripts/lunet_bin.sh --build 2>/dev/null || true)
+		lunet_bin=$(LUNET_DIR="${LUNET_DIR:-./deps/lunet}" ./scripts/lunet_bin.sh --build 2>/dev/null || true)
 	fi
 	if [[ -z "$lunet_bin" ]]; then
 		error "No lunet binary found (.tmp bundle or xmake-built lunet-run)"

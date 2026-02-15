@@ -19,8 +19,8 @@
 --   curl -N http://localhost:8080/sse
 --
 -- Tracing:
---   MCP_TRACE=info ./lunet/build/<platform>/<arch>/release/lunet-run app/main.lua
---   MCP_TRACE=debug ./lunet/build/<platform>/<arch>/release/lunet-run app/main.lua
+--   MCP_TRACE=info ./deps/lunet/build/<platform>/<arch>/release/lunet-run app/main.lua
+--   MCP_TRACE=debug ./deps/lunet/build/<platform>/<arch>/release/lunet-run app/main.lua
 
 io.stdout:setvbuf('no')
 io.stderr:setvbuf('no')
@@ -419,6 +419,8 @@ local function http_post_async(url, body, headers)
 end
 
 -- Tavily API call - async for HTTP, curl fallback for HTTPS
+local httpc_ok, httpc = pcall(require, "lunet.httpc")
+
 local function tavily_search(query, max_results)
     if not TAVILY_API_KEY then
         return nil, "TAVILY_API_KEY not configured"
@@ -440,8 +442,25 @@ local function tavily_search(query, max_results)
     -- Try async HTTP first
     local response, err = http_post_async(api_url, request_body, headers)
     
-    -- Fall back to curl for HTTPS
-    if err == "HTTPS_FALLBACK" then
+    -- HTTPS: prefer native lunet.httpc when available
+    if err == "HTTPS_FALLBACK" and httpc_ok and httpc and type(httpc.request) == "function" then
+        trace.debug("HTTP", "Using lunet.httpc for HTTPS")
+        local resp, herr = httpc.request({
+            url = api_url,
+            method = "POST",
+            headers = {
+                ["Content-Type"] = "application/json",
+                ["Authorization"] = "Bearer " .. TAVILY_API_KEY,
+            },
+            body = request_body,
+            timeout_ms = 30000,
+            max_body_bytes = 5 * 1024 * 1024,
+        })
+        if not resp then
+            return nil, "Tavily HTTPS request failed: " .. (herr or "unknown")
+        end
+        response = resp.body
+    elseif err == "HTTPS_FALLBACK" then
         trace.debug("HTTP", "Using curl fallback for HTTPS")
         local cmd = "curl -s -X POST '" .. api_url .. "' " ..
                     "-H 'Content-Type: application/json' " ..

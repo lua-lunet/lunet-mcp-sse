@@ -16,22 +16,14 @@ on:
 permissions:
   contents: write
 
-env:
-  LUNET_VERSION: main
-
 jobs:
   build-linux-amd64:
     name: Build Linux amd64
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout lunet
-        uses: actions/checkout@v4
         with:
-          repository: lua-lunet/lunet
-          ref: ${{ env.LUNET_VERSION }}
-          path: lunet
+          submodules: recursive
 
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -43,20 +35,20 @@ jobs:
           sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
 
       - name: Configure Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake f -m release -y
 
       - name: Build Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build
 
       - name: Build Lunet SQLite3
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build lunet-sqlite3
 
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -71,9 +63,9 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-          LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
-          SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -name 'lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -name 'sqlite3.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
@@ -106,13 +98,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout lunet
-        uses: actions/checkout@v4
         with:
-          repository: lua-lunet/lunet
-          ref: ${{ env.LUNET_VERSION }}
-          path: lunet
+          submodules: recursive
 
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -124,20 +111,20 @@ jobs:
           sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
 
       - name: Configure Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake f -m release -y
 
       - name: Build Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build
 
       - name: Build Lunet SQLite3
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build lunet-sqlite3
 
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -152,9 +139,9 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-          LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
-          SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -name 'lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -name 'sqlite3.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
@@ -188,13 +175,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout lunet
-        uses: actions/checkout@v4
         with:
-          repository: lua-lunet/lunet
-          ref: ${{ env.LUNET_VERSION }}
-          path: lunet
+          submodules: recursive
 
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -204,20 +186,20 @@ jobs:
         run: brew install pkg-config libuv luajit
 
       - name: Configure Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake f -m release -y
 
       - name: Build Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build
 
       - name: Build Lunet SQLite3
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build lunet-sqlite3
 
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -232,9 +214,9 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find lunet/build -name 'lunet-run' -type f | head -1)
-          LUNET_SO=$(find lunet/build -name 'lunet.so' -type f | head -1)
-          SQLITE_SO=$(find lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -name 'lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -name 'sqlite3.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
@@ -268,13 +250,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout lunet
-        uses: actions/checkout@v4
         with:
-          repository: lua-lunet/lunet
-          ref: ${{ env.LUNET_VERSION }}
-          path: lunet
+          submodules: recursive
 
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -289,7 +266,7 @@ jobs:
         run: vcpkg install libuv:x64-windows luajit:x64-windows
 
       - name: Configure Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         shell: pwsh
         run: |
           $env:VCPKG_ROOT = "${{ github.workspace }}/vcpkg"
@@ -297,11 +274,11 @@ jobs:
           xmake f -m release -y
 
       - name: Build Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build
 
       - name: Build Lunet SQLite3
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build lunet-sqlite3
 
       - name: Package
@@ -312,9 +289,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist/app | Out-Null
           New-Item -ItemType Directory -Force -Path dist/test | Out-Null
 
-          $lunetBin = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet-run.exe" | Select-Object -First 1
-          $lunetDll = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet.dll" | Select-Object -First 1
-          $sqliteDll = Get-ChildItem -Path lunet/build -Recurse -Filter "sqlite3.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $lunetBin = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "lunet-run.exe" | Select-Object -First 1
+          $lunetDll = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "lunet.dll" | Select-Object -First 1
+          $sqliteDll = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "sqlite3.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
 
           Copy-Item $lunetBin.FullName -Destination dist/bin/lunet.exe
           Copy-Item $lunetDll.FullName -Destination dist/lib/
