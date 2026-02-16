@@ -19,11 +19,24 @@
 --   curl -N http://localhost:8080/sse
 --
 -- Tracing:
---   MCP_TRACE=info ./deps/lunet/build/<platform>/<arch>/release/lunet-run app/main.lua
---   MCP_TRACE=debug ./deps/lunet/build/<platform>/<arch>/release/lunet-run app/main.lua
+--   MCP_TRACE=info make run
+--   MCP_TRACE=debug make run
+--
+-- Verbose startup:
+--   ./bin/lunet -v app/main.lua   # or --verbose
+
 
 io.stdout:setvbuf('no')
 io.stderr:setvbuf('no')
+
+-- Parse -v/--verbose for startup logging
+local VERBOSE = false
+for i = 1, #arg do
+    if arg[i] == "-v" or arg[i] == "--verbose" then
+        VERBOSE = true
+        break
+    end
+end
 
 local lunet = require("lunet")
 local socket = require("lunet.socket")
@@ -58,7 +71,9 @@ end
 load_env_file(".env")
 local TAVILY_API_KEY = getenv("TAVILY_API_KEY")
 if not TAVILY_API_KEY then
-    print("WARNING: TAVILY_API_KEY not set. Tavily search will fail.")
+    if VERBOSE then
+        print("WARNING: TAVILY_API_KEY not set. Tavily search will fail.")
+    end
     trace.warn("CONFIG", "TAVILY_API_KEY not set")
 end
 
@@ -766,27 +781,29 @@ lunet.spawn(function()
     local listener, err = socket.listen("tcp", host, port)
     if not listener then
         trace.error("SERVER", "Cannot listen on port %d: %s", port, err or "unknown")
-        print("FATAL: Cannot listen: " .. (err or "unknown"))
+        io.stderr:write("FATAL: Cannot listen: " .. (err or "unknown") .. "\n")
         return
     end
 
     trace.info("SERVER", "Starting on port %d", port)
-    print("MCP-SSE Tavily Demo Server")
-    print("==========================")
-    print("Protocol: MCP " .. MCP_VERSION)
-    print("Server:   " .. SERVER_NAME .. " v" .. SERVER_VERSION)
-    print("Port:     http://" .. host .. ":" .. port)
-    print("")
-    print("Endpoints:")
-    print("  GET  /       -> Server info")
-    print("  GET  /sse    -> SSE stream (creates session)")
-    print("  POST /message?session=<id> -> Send JSON-RPC message")
-    print("")
-    print("Tools: tavily-search")
-    print("")
-    print("Test:")
-    print("  curl http://localhost:" .. port .. "/")
-    print("  curl -N http://localhost:" .. port .. "/sse")
+    if VERBOSE then
+        print("MCP-SSE Tavily Demo Server")
+        print("==========================")
+        print("Protocol: MCP " .. MCP_VERSION)
+        print("Server:   " .. SERVER_NAME .. " v" .. SERVER_VERSION)
+        print("Port:     http://" .. host .. ":" .. port)
+        print("")
+        print("Endpoints:")
+        print("  GET  /       -> Server info")
+        print("  GET  /sse    -> SSE stream (creates session)")
+        print("  POST /message?session=<id> -> Send JSON-RPC message")
+        print("")
+        print("Tools: tavily-search")
+        print("")
+        print("Test:")
+        print("  curl http://localhost:" .. port .. "/")
+        print("  curl -N http://localhost:" .. port .. "/sse")
+    end
 
     while true do
         local client = socket.accept(listener)

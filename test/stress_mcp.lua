@@ -9,10 +9,11 @@
 --
 -- Usage:
 --   # Start server first:
---   ./deps/lunet/build/<platform>/<arch>/release/lunet-run app/main.lua &
---   
+--   make run &
+--
 --   # Then run stress test:
---   ./deps/lunet/build/<platform>/<arch>/release/lunet-run test/stress_mcp.lua
+--   make stress
+
 --
 -- Environment:
 --   STRESS_CLIENTS   - Number of concurrent clients (default 20)
@@ -258,7 +259,7 @@ lunet.spawn(function()
     local check_resp, check_err = http_request("GET", "/")
     if not check_resp then
         print("[STRESS] FATAL: Server not running at " .. HOST .. ":" .. PORT)
-        print("[STRESS] Start the server first: ./deps/lunet/build/<platform>/<arch>/release/lunet-run app/main.lua")
+        print("[STRESS] Start the server first: make run")
         os.exit(1)
     end
 

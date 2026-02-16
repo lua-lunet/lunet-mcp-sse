@@ -1,5 +1,7 @@
 # lunet-mcp-sse
 
+[![Lunet v0.1.2](https://img.shields.io/badge/Lunet-v0.1.2-blue?logo=lua&logoColor=white)](https://github.com/lua-lunet/lunet/releases/tag/v0.1.2)
+
 A minimal MCP (Model Context Protocol) server demonstrating Tavily web search via SSE transport, built on the [Lunet](https://github.com/lua-lunet/lunet) framework.
 
 [中文文档](README-CN.md)
@@ -177,6 +179,14 @@ curl -N http://localhost:8080/sse
 3. Client POSTs JSON-RPC messages to `/message?session=<id>`
 4. Server responds via SSE events on the GET connection
 
+There is no HTTPS termination support in this repo by design. 
+If you want to run a public-facing MCP SSE you can trivially
+deploy this code with nginx as a sidecar else on a private cloud 
+network behind a cloud load balancer. That is The Unix Way of piping 
+data between specialist tools. It gives you the “QMail Security Model” 
+where dealing protocol attacks is process segregated from any 
+business logic. 
+
 ## Tools Available
 
 ### tavily-search
@@ -210,6 +220,8 @@ Search the web using Tavily AI search engine.
 
 ## Building from Source
 
+Requires [xmake](https://xmake.io/) and Lunet v0.1.2+. See [XMAKE_INTEGRATION.md](https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md) for the canonical integration guide.
+
 ```bash
 # Clone and init submodules
 git clone https://github.com/lua-lunet/lunet-mcp-sse.git
@@ -228,6 +240,10 @@ The server includes a zero-cost tracing system that has **no overhead when disab
 ```bash
 # No tracing (production, zero overhead)
 ./run.sh
+
+# Verbose startup - show server banner
+./run.sh -v
+# or: ./run.sh --verbose
 
 # Info level - see sessions and tool calls
 MCP_TRACE=info ./run.sh

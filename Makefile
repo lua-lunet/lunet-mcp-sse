@@ -12,7 +12,7 @@ TIMEOUT := 10
 # Detect timeout command (GNU coreutils vs BSD)
 TIMEOUT_CMD := $(shell command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null || echo "")
 
-.PHONY: all build check-lunet-version run run-debug run-trace test stress bench bench-shell clean help
+.PHONY: all build check-lunet-version run run-info run-debug run-trace run-port test stress bench bench-heavy bench-shell stress-shell clean clean-all help
 
 all: help
 
@@ -50,11 +50,10 @@ run-port: build
 	@LUNET_BIN=$$(LUNET_DIR="$(LUNET_DIR)" $(LUNET_BIN_HELPER)); \
 	PORT=$(PORT) "$$LUNET_BIN" app/main.lua
 
-# Test the server (must be running) - with timeout
+# Test the server (must be running)
 test:
 	@echo "Testing server info endpoint..."
 	@curl -s --max-time 5 http://localhost:8080/ || echo "ERROR: Server not responding"
-	@echo ""
 	@echo ""
 	@echo "Testing SSE endpoint (3 seconds)..."
 	@curl -sN --max-time 3 http://localhost:8080/sse || true
@@ -73,7 +72,7 @@ stress-shell:
 	@echo ""
 	@echo "Done"
 
-# Lua stress test (server must be running) - with timeout
+# Lua stress test (server must be running)
 stress: build
 ifneq ($(TIMEOUT_CMD),)
 	@LUNET_BIN=$$(LUNET_DIR="$(LUNET_DIR)" $(LUNET_BIN_HELPER)); \
@@ -84,7 +83,7 @@ else
 	"$$LUNET_BIN" test/stress_mcp.lua
 endif
 
-# Memory benchmark (starts its own server) - with timeout
+# Memory benchmark (starts its own server)
 bench: build
 ifneq ($(TIMEOUT_CMD),)
 	@LUNET_BIN=$$(LUNET_DIR="$(LUNET_DIR)" $(LUNET_BIN_HELPER)); \
@@ -112,7 +111,7 @@ clean:
 
 # Deep clean (including lunet build)
 clean-all: clean
-	cd $(LUNET_DIR) && xmake clean 2>/dev/null || true
+	cd "$(LUNET_DIR)" && xmake clean 2>/dev/null || true
 	@echo "Cleaned all build artifacts"
 
 # Show help
@@ -144,12 +143,9 @@ help:
 	@echo "  MCP_TRACE        - Trace level: off|error|warn|info|debug|trace"
 	@echo "  MCP_TRACE_FILE   - Trace output file (default: stderr)"
 	@echo ""
-	@echo "Tracing Examples:"
-	@echo "  MCP_TRACE=info make run     # Info-level tracing"
-	@echo "  MCP_TRACE=debug make run    # Debug-level tracing"
-	@echo ""
 	@echo "Quick Start:"
 	@echo "  1. Create .env with TAVILY_API_KEY=your_key"
-	@echo "  2. make build"
-	@echo "  3. make run"
-	@echo "  4. curl http://localhost:8080/"
+	@echo "  2. git submodule update --init --recursive"
+	@echo "  3. make build"
+	@echo "  4. make run"
+	@echo "  5. curl http://localhost:8080/"

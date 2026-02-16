@@ -24,7 +24,7 @@ LUA_CPATH="./lib/?.so;;"
 export LUA_CPATH
 
 if [ -f "$LUNET_BIN" ]; then
-	exec "$LUNET_BIN" app/main.lua
+	exec "$LUNET_BIN" app/main.lua "$@"
 else
 	echo "ERROR: lunet binary not found at $LUNET_BIN"
 	ls -la bin/ 2>/dev/null || true

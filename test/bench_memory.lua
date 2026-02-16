@@ -6,7 +6,8 @@
 -- then applies load and measures peak memory.
 --
 -- Usage:
---   ./deps/lunet/build/<platform>/<arch>/release/lunet-run test/bench_memory.lua
+--   make bench
+
 --
 -- Environment:
 --   BENCH_PORT      - Server port (default 8081, different to avoid conflicts)

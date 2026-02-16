@@ -32,11 +32,11 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
+          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev libcurl4-openssl-dev
 
       - name: Configure Lunet
         working-directory: deps/lunet
-        run: xmake f -m release -y
+        run: xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 
       - name: Build Lunet
         working-directory: deps/lunet
@@ -46,9 +46,13 @@ jobs:
         working-directory: deps/lunet
         run: xmake build lunet-sqlite3
 
+      - name: Build Lunet HTTPC
+        working-directory: deps/lunet
+        run: xmake build lunet-httpc
+
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -63,13 +67,15 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
-          LUNET_SO=$(find deps/lunet/build -name 'lunet.so' -type f | head -1)
-          SQLITE_SO=$(find deps/lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -path '*/release/lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          HTTPC_SO=$(find deps/lunet/build -path '*/release/httpc.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
           [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          [ -f "$HTTPC_SO" ] && cp "$HTTPC_SO" dist/lib/ || true
 
           cp -r app/* dist/app/
           cp -r test/* dist/test/
@@ -108,11 +114,11 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
+          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev libcurl4-openssl-dev
 
       - name: Configure Lunet
         working-directory: deps/lunet
-        run: xmake f -m release -y
+        run: xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 
       - name: Build Lunet
         working-directory: deps/lunet
@@ -122,9 +128,13 @@ jobs:
         working-directory: deps/lunet
         run: xmake build lunet-sqlite3
 
+      - name: Build Lunet HTTPC
+        working-directory: deps/lunet
+        run: xmake build lunet-httpc
+
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -139,13 +149,15 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
-          LUNET_SO=$(find deps/lunet/build -name 'lunet.so' -type f | head -1)
-          SQLITE_SO=$(find deps/lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -path '*/release/lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          HTTPC_SO=$(find deps/lunet/build -path '*/release/httpc.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
           [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          [ -f "$HTTPC_SO" ] && cp "$HTTPC_SO" dist/lib/ || true
 
           cp -r app/* dist/app/
           cp -r test/* dist/test/
@@ -183,11 +195,11 @@ jobs:
           xmake-version: latest
 
       - name: Install Dependencies
-        run: brew install pkg-config libuv luajit
+        run: brew install pkg-config libuv luajit curl
 
       - name: Configure Lunet
         working-directory: deps/lunet
-        run: xmake f -m release -y
+        run: xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 
       - name: Build Lunet
         working-directory: deps/lunet
@@ -197,9 +209,13 @@ jobs:
         working-directory: deps/lunet
         run: xmake build lunet-sqlite3
 
+      - name: Build Lunet HTTPC
+        working-directory: deps/lunet
+        run: xmake build lunet-httpc
+
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -214,13 +230,15 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find deps/lunet/build -name 'lunet-run' -type f | head -1)
-          LUNET_SO=$(find deps/lunet/build -name 'lunet.so' -type f | head -1)
-          SQLITE_SO=$(find deps/lunet/build -name 'sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -path '*/release/lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          HTTPC_SO=$(find deps/lunet/build -path '*/release/httpc.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
           [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          [ -f "$HTTPC_SO" ] && cp "$HTTPC_SO" dist/lib/ || true
 
           cp -r app/* dist/app/
           cp -r test/* dist/test/
@@ -263,7 +281,7 @@ jobs:
           vcpkgGitCommitId: 'f9d8eecab99cb23e4befb7ea90b2f9504d311b54'
 
       - name: Install Dependencies
-        run: vcpkg install libuv:x64-windows luajit:x64-windows
+        run: vcpkg install libuv:x64-windows luajit:x64-windows curl:x64-windows
 
       - name: Configure Lunet
         working-directory: deps/lunet
@@ -271,7 +289,7 @@ jobs:
         run: |
           $env:VCPKG_ROOT = "${{ github.workspace }}/vcpkg"
           $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
-          xmake f -m release -y
+          xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 
       - name: Build Lunet
         working-directory: deps/lunet
@@ -280,6 +298,10 @@ jobs:
       - name: Build Lunet SQLite3
         working-directory: deps/lunet
         run: xmake build lunet-sqlite3
+
+      - name: Build Lunet HTTPC
+        working-directory: deps/lunet
+        run: xmake build lunet-httpc
 
       - name: Package
         shell: pwsh
@@ -292,10 +314,12 @@ jobs:
           $lunetBin = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "lunet-run.exe" | Select-Object -First 1
           $lunetDll = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "lunet.dll" | Select-Object -First 1
           $sqliteDll = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "sqlite3.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $httpcDll = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "httpc.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
 
           Copy-Item $lunetBin.FullName -Destination dist/bin/lunet.exe
           Copy-Item $lunetDll.FullName -Destination dist/lib/
           if ($sqliteDll) { Copy-Item $sqliteDll.FullName -Destination dist/lib/ }
+          if ($httpcDll) { Copy-Item $httpcDll.FullName -Destination dist/lib/ }
 
           $vcpkgBin = "${{ github.workspace }}/vcpkg/installed/x64-windows/bin"
           if (Test-Path $vcpkgBin) {
