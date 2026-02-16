@@ -1,0 +1,3 @@
+[submodule "deps/lunet"]
+	path = deps/lunet
+	url = https://github.com/lua-lunet/lunet.git

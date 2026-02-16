@@ -7,7 +7,7 @@
 --
 -- Usage:
 --   make bench
---   # or: LUNET_BIN=$(find ../lunet/build -path '*/release/lunet-run*' -type f | head -1) && $LUNET_BIN test/bench_memory.lua
+
 --
 -- Environment:
 --   BENCH_PORT      - Server port (default 8081, different to avoid conflicts)

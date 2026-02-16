@@ -10,11 +10,10 @@
 -- Usage:
 --   # Start server first:
 --   make run &
---   # or: LUNET_BIN=$(find ../lunet/build -path '*/release/lunet-run*' -type f | head -1) && $LUNET_BIN app/main.lua &
 --
 --   # Then run stress test:
 --   make stress
---   # or: LUNET_BIN=$(find ../lunet/build -path '*/release/lunet-run*' -type f | head -1) && $LUNET_BIN test/stress_mcp.lua
+
 --
 -- Environment:
 --   STRESS_CLIENTS   - Number of concurrent clients (default 20)

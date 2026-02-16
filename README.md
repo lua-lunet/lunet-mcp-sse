@@ -4,6 +4,8 @@
 
 A minimal MCP (Model Context Protocol) server demonstrating Tavily web search via SSE transport, built on the [Lunet](https://github.com/lua-lunet/lunet) framework.
 
+[中文文档](README-CN.md)
+
 ## Why Lunet?
 
 MCP servers are often deployed as sidecar processes or in resource-constrained environments. This implementation prioritizes:
@@ -221,20 +223,12 @@ Search the web using Tavily AI search engine.
 Requires [xmake](https://xmake.io/) and Lunet v0.1.2+. See [XMAKE_INTEGRATION.md](https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md) for the canonical integration guide.
 
 ```bash
-# Clone the lua-lunet org repos (lunet-mcp-sse requires sibling lunet repo)
-mkdir lua-lunet && cd lua-lunet
-git clone https://github.com/lua-lunet/lunet.git
+# Clone and init submodules
 git clone https://github.com/lua-lunet/lunet-mcp-sse.git
-
-# Build lunet with xmake (canonical release profile)
-cd lunet
-xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
-xmake build
-xmake build lunet-sqlite3
-cd ..
+cd lunet-mcp-sse
+git submodule update --init --recursive
 
 # Run
-cd lunet-mcp-sse
 echo "TAVILY_API_KEY=your_key_here" > .env
 make run
 ```
@@ -274,3 +268,7 @@ This tests against:
 ## License
 
 MIT
+
+---
+
+> This project uses [Lunet](https://github.com/lua-lunet/lunet), which is based on [xialeistudio/lunet](https://github.com/xialeistudio/lunet) by [夏磊 (Xia Lei)](https://github.com/xialeistudio). See also his excellent write-up: [Lunet: Design and Implementation of a High-Performance Coroutine Network Library](https://www.ddhigh.com/en/2025/07/12/lunet-high-performance-coroutine-network-library/).

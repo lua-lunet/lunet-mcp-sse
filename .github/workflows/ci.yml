@@ -16,22 +16,14 @@ on:
 permissions:
   contents: write
 
-env:
-  LUNET_VERSION: v0.1.2
-
 jobs:
   build-linux-amd64:
     name: Build Linux amd64
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout lunet
-        uses: actions/checkout@v4
         with:
-          repository: lua-lunet/lunet
-          ref: ${{ env.LUNET_VERSION }}
-          path: lunet
+          submodules: recursive
 
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -40,23 +32,27 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
+          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev libcurl4-openssl-dev
 
       - name: Configure Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 
       - name: Build Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build
 
       - name: Build Lunet SQLite3
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build lunet-sqlite3
+
+      - name: Build Lunet HTTPC
+        working-directory: deps/lunet
+        run: xmake build lunet-httpc
 
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -71,13 +67,15 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find lunet/build -path '*/release/lunet-run*' -type f | head -1)
-          LUNET_SO=$(find lunet/build -path '*/release/lunet.so' -type f | head -1)
-          SQLITE_SO=$(find lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -path '*/release/lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          HTTPC_SO=$(find deps/lunet/build -path '*/release/httpc.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
           [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          [ -f "$HTTPC_SO" ] && cp "$HTTPC_SO" dist/lib/ || true
 
           cp -r app/* dist/app/
           cp -r test/* dist/test/
@@ -106,13 +104,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout lunet
-        uses: actions/checkout@v4
         with:
-          repository: lua-lunet/lunet
-          ref: ${{ env.LUNET_VERSION }}
-          path: lunet
+          submodules: recursive
 
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -121,23 +114,27 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev
+          sudo apt-get install -y pkg-config libuv1-dev luajit libluajit-5.1-dev libcurl4-openssl-dev
 
       - name: Configure Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 
       - name: Build Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build
 
       - name: Build Lunet SQLite3
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build lunet-sqlite3
+
+      - name: Build Lunet HTTPC
+        working-directory: deps/lunet
+        run: xmake build lunet-httpc
 
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -152,13 +149,15 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find lunet/build -path '*/release/lunet-run*' -type f | head -1)
-          LUNET_SO=$(find lunet/build -path '*/release/lunet.so' -type f | head -1)
-          SQLITE_SO=$(find lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -path '*/release/lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          HTTPC_SO=$(find deps/lunet/build -path '*/release/httpc.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
           [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          [ -f "$HTTPC_SO" ] && cp "$HTTPC_SO" dist/lib/ || true
 
           cp -r app/* dist/app/
           cp -r test/* dist/test/
@@ -188,36 +187,35 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout lunet
-        uses: actions/checkout@v4
         with:
-          repository: lua-lunet/lunet
-          ref: ${{ env.LUNET_VERSION }}
-          path: lunet
+          submodules: recursive
 
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: latest
 
       - name: Install Dependencies
-        run: brew install pkg-config libuv luajit
+        run: brew install pkg-config libuv luajit curl
 
       - name: Configure Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 
       - name: Build Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build
 
       - name: Build Lunet SQLite3
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build lunet-sqlite3
+
+      - name: Build Lunet HTTPC
+        working-directory: deps/lunet
+        run: xmake build lunet-httpc
 
       - name: Test MCP Server
         run: |
-          LUNET_BIN=$(find lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
           timeout 5 $LUNET_BIN app/main.lua &
           SERVER_PID=$!
           sleep 2
@@ -232,13 +230,15 @@ jobs:
           mkdir -p dist/app
           mkdir -p dist/test
 
-          LUNET_BIN=$(find lunet/build -path '*/release/lunet-run*' -type f | head -1)
-          LUNET_SO=$(find lunet/build -path '*/release/lunet.so' -type f | head -1)
-          SQLITE_SO=$(find lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          LUNET_BIN=$(find deps/lunet/build -path '*/release/lunet-run*' -type f | head -1)
+          LUNET_SO=$(find deps/lunet/build -path '*/release/lunet.so' -type f | head -1)
+          SQLITE_SO=$(find deps/lunet/build -path '*/release/sqlite3.so' -type f | head -1)
+          HTTPC_SO=$(find deps/lunet/build -path '*/release/httpc.so' -type f | head -1)
 
           cp "$LUNET_BIN" dist/bin/lunet
           [ -f "$LUNET_SO" ] && cp "$LUNET_SO" dist/lib/ || true
           [ -f "$SQLITE_SO" ] && cp "$SQLITE_SO" dist/lib/ || true
+          [ -f "$HTTPC_SO" ] && cp "$HTTPC_SO" dist/lib/ || true
 
           cp -r app/* dist/app/
           cp -r test/* dist/test/
@@ -268,13 +268,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout lunet
-        uses: actions/checkout@v4
         with:
-          repository: lua-lunet/lunet
-          ref: ${{ env.LUNET_VERSION }}
-          path: lunet
+          submodules: recursive
 
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -286,10 +281,10 @@ jobs:
           vcpkgGitCommitId: 'f9d8eecab99cb23e4befb7ea90b2f9504d311b54'
 
       - name: Install Dependencies
-        run: vcpkg install libuv:x64-windows luajit:x64-windows
+        run: vcpkg install libuv:x64-windows luajit:x64-windows curl:x64-windows
 
       - name: Configure Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         shell: pwsh
         run: |
           $env:VCPKG_ROOT = "${{ github.workspace }}/vcpkg"
@@ -297,12 +292,16 @@ jobs:
           xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 
       - name: Build Lunet
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build
 
       - name: Build Lunet SQLite3
-        working-directory: lunet
+        working-directory: deps/lunet
         run: xmake build lunet-sqlite3
+
+      - name: Build Lunet HTTPC
+        working-directory: deps/lunet
+        run: xmake build lunet-httpc
 
       - name: Package
         shell: pwsh
@@ -312,13 +311,15 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist/app | Out-Null
           New-Item -ItemType Directory -Force -Path dist/test | Out-Null
 
-          $lunetBin = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet-run.exe" | Select-Object -First 1
-          $lunetDll = Get-ChildItem -Path lunet/build -Recurse -Filter "lunet.dll" | Select-Object -First 1
-          $sqliteDll = Get-ChildItem -Path lunet/build -Recurse -Filter "sqlite3.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $lunetBin = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "lunet-run.exe" | Select-Object -First 1
+          $lunetDll = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "lunet.dll" | Select-Object -First 1
+          $sqliteDll = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "sqlite3.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $httpcDll = Get-ChildItem -Path deps/lunet/build -Recurse -Filter "httpc.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
 
           Copy-Item $lunetBin.FullName -Destination dist/bin/lunet.exe
           Copy-Item $lunetDll.FullName -Destination dist/lib/
           if ($sqliteDll) { Copy-Item $sqliteDll.FullName -Destination dist/lib/ }
+          if ($httpcDll) { Copy-Item $httpcDll.FullName -Destination dist/lib/ }
 
           $vcpkgBin = "${{ github.workspace }}/vcpkg/installed/x64-windows/bin"
           if (Test-Path $vcpkgBin) {
@@ -349,6 +350,70 @@ jobs:
         with:
           name: lunet-mcp-sse-windows-amd64
           path: lunet-mcp-sse-windows-amd64.zip
+
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [build-linux-amd64, build-linux-arm64]
+    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download amd64 binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: lunet-mcp-sse-linux-amd64
+          path: artifacts/amd64/
+
+      - name: Download arm64 binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: lunet-mcp-sse-linux-arm64
+          path: artifacts/arm64/
+
+      - name: Prepare binaries
+        run: |
+          for arch in amd64 arm64; do
+            mkdir -p "staging/${arch}/bin" "staging/${arch}/lib" "staging/${arch}/app"
+            tar -xzf "artifacts/${arch}/lunet-mcp-sse-linux-${arch}.tar.gz" -C "staging/${arch}"
+          done
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha
+            type=ref,event=branch
+            type=raw,value=nightly,enable=eq(${{ github.ref }}, 'refs/heads/main')
+
+      - name: Build and push multi-arch Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Show image manifests
+        run: |
+          echo "Image digest:"
+          docker buildx imagetools inspect ghcr.io/lua-lunet/lunet-mcp-sse:nightly 2>/dev/null || echo "Images built successfully"
 
   nightly:
     name: Nightly Release
