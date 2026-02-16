@@ -415,21 +415,40 @@ local function http_post_async(url, body, headers)
         return nil, "Write failed: " .. tostring(write_err)
     end
     
-    -- Read response (lunet socket.read is async)
-    local response = socket.read(client)
+    -- Read response in a loop until EOF (Connection: close)
+    local chunks = {}
+    while true do
+        local chunk = socket.read(client)
+        if not chunk or chunk == "" then break end
+        chunks[#chunks + 1] = chunk
+    end
     socket.close(client)
-    
-    if not response then
+
+    if #chunks == 0 then
         return nil, "No response received"
     end
-    
-    -- Parse HTTP response
+
+    local response = table.concat(chunks)
+
+    -- Parse status line
+    local status_line = response:match("^(.-)\r\n")
+    if not status_line then
+        return nil, "Invalid HTTP response"
+    end
+    local status_code = tonumber(status_line:match("HTTP/%d%.%d (%d+)"))
+
+    -- Parse HTTP response body
     local body_start = response:find("\r\n\r\n")
     if not body_start then
         return nil, "Invalid HTTP response"
     end
-    
+
     local response_body = response:sub(body_start + 4)
+
+    if not status_code or status_code < 200 or status_code >= 300 then
+        return nil, "HTTP " .. tostring(status_code or "???") .. ": " .. response_body:sub(1, 200)
+    end
+
     return response_body
 end
 
@@ -477,7 +496,7 @@ local function tavily_search(query, max_results)
         response = resp.body
     elseif err == "HTTPS_FALLBACK" then
         trace.debug("HTTP", "Using curl fallback for HTTPS")
-        local cmd = "curl -s -X POST '" .. api_url .. "' " ..
+        local cmd = "curl -s -X POST " .. shell_escape(api_url) .. " " ..
                     "-H 'Content-Type: application/json' " ..
                     "-H " .. shell_escape("Authorization: Bearer " .. TAVILY_API_KEY) .. " " ..
                     "-d " .. shell_escape(request_body)

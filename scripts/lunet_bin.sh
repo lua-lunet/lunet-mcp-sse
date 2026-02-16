@@ -33,6 +33,7 @@ if [[ -z "$RUNNER_BIN" && "$DO_BUILD" -eq 1 ]]; then
 		cd "$LUNET_DIR"
 		xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
 		xmake build lunet-bin
+		xmake build lunet-sqlite3
 		xmake build lunet-httpc
 	)
 	RUNNER_BIN="$(find_runner)"

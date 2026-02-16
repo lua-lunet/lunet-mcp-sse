@@ -373,12 +373,10 @@ jobs:
 
       - name: Prepare binaries
         run: |
-          mkdir -p bin lib app
-          cp artifacts/amd64/bin/lunet bin/lunet
-          cp artifacts/arm64/bin/lunet bin/lunet
-          cp artifacts/amd64/lib/*.so lib/ 2>/dev/null || true
-          cp -r artifacts/amd64/app/* app/
-          cp artifacts/amd64/run.sh .
+          for arch in amd64 arm64; do
+            mkdir -p "staging/${arch}/bin" "staging/${arch}/lib" "staging/${arch}/app"
+            tar -xzf "artifacts/${arch}/lunet-mcp-sse-linux-${arch}.tar.gz" -C "staging/${arch}"
+          done
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -404,6 +402,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -419,7 +418,7 @@ jobs:
   nightly:
     name: Nightly Release
     runs-on: ubuntu-latest
-    needs: [build-linux-amd64, build-linux-arm64, build-macos, build-windows, docker]
+    needs: [build-linux-amd64, build-linux-arm64, build-macos, build-windows]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
