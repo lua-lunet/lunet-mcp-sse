@@ -220,7 +220,7 @@ Search the web using Tavily AI search engine.
 
 ## Building from Source
 
-Requires [xmake](https://xmake.io/) and Lunet v0.1.2+. See [XMAKE_INTEGRATION.md](https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md) for the canonical integration guide.
+Requires [xmake](https://xmake.io/). See [XMAKE_INTEGRATION.md](https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md) for the canonical Lunet integration guide.
 
 ```bash
 # Clone and init submodules
@@ -228,10 +228,29 @@ git clone https://github.com/lua-lunet/lunet-mcp-sse.git
 cd lunet-mcp-sse
 git submodule update --init --recursive
 
-# Run
+# Build and run (xmake workflow)
 echo "TAVILY_API_KEY=your_key_here" > .env
+xmake lunet-build
+xmake lunet-run
+
+# Or via make (compatibility wrapper)
+make build
 make run
 ```
+
+### xmake Tasks
+
+| Task | Description |
+|------|-------------|
+| `xmake lunet-build` | Build Lunet runtime + modules from `deps/lunet` |
+| `xmake lunet-run` | Start the MCP server |
+| `xmake lunet-run --trace=debug` | Start with debug tracing |
+| `xmake lunet-run --port=9000` | Start on custom port |
+| `xmake lunet-test` | Test endpoints (server must be running) |
+| `xmake lunet-stress` | Run Lua stress test |
+| `xmake lunet-bench` | Run memory benchmark |
+| `xmake lunet-smoke` | Run httpc smoke test (HTTPS to example.com) |
+| `xmake lunet-package` | Package dist/ for release |
 
 ## Zero-Cost Tracing
 

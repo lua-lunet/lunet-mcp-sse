@@ -31,10 +31,12 @@ io.stderr:setvbuf('no')
 
 -- Parse -v/--verbose for startup logging
 local VERBOSE = false
-for i = 1, #arg do
-    if arg[i] == "-v" or arg[i] == "--verbose" then
-        VERBOSE = true
-        break
+if arg then
+    for i = 1, #arg do
+        if arg[i] == "-v" or arg[i] == "--verbose" then
+            VERBOSE = true
+            break
+        end
     end
 end
 
