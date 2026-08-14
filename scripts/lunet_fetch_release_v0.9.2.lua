@@ -135,10 +135,16 @@ end
 -- asset can never match a different asset's digest.
 local function fetch_expected_digest(asset)
 	local api = "https://api.github.com/repos/" .. REPO .. "/releases/tags/" .. RELEASE_TAG
+	local auth_header = ""
+	local token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+	if token and token ~= "" then
+		auth_header = ' -H "Authorization: Bearer ' .. token .. '"'
+	end
 	local json = capture(
 		'curl -fsSL --connect-timeout 10 --max-time 30'
 			.. ' -H "Accept: application/vnd.github+json"'
 			.. ' -H "User-Agent: lunet-fetch-release"'
+			.. auth_header
 			.. ' "' .. api .. '"'
 	)
 	if not json or json == "" then
