@@ -1,12 +1,18 @@
 # lunet-mcp-sse Makefile
 #
 # A demo MCP-SSE server for Tavily search using the Lunet framework.
-# Assumes lunet is a sibling directory (../lunet).
-# Uses xmake per https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md
+# Consumes the official Lunet binary release.
 
-LUNET_DIR := ../lunet
-# Lazy evaluation: find lunet-run after build (canonical xmake output path)
-LUNET_BIN = $(shell find $(LUNET_DIR)/build -path '*/release/lunet-run*' -type f 2>/dev/null | head -1)
+LUNET_VERSION ?= v0.9.2
+FETCHER := ./scripts/lunet_fetch_release_$(LUNET_VERSION).lua
+
+LUA_CMD := $(shell command -v lua 2>/dev/null || command -v luajit 2>/dev/null || echo "")
+
+ifeq ($(OS),Windows_NT)
+  LUNET_BIN := .lunet/$(LUNET_VERSION)/lunet-run.exe
+else
+  LUNET_BIN := .lunet/$(LUNET_VERSION)/lunet-run
+endif
 
 # Default timeout for commands (seconds)
 TIMEOUT := 10
@@ -14,42 +20,44 @@ TIMEOUT := 10
 # Detect timeout command (GNU coreutils vs BSD)
 TIMEOUT_CMD := $(shell command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null || echo "")
 
-.PHONY: all build run run-debug run-trace test stress bench bench-shell clean help
+.PHONY: all build run run-info run-debug run-trace run-port test stress bench bench-heavy bench-shell stress-shell clean clean-all help
 
 all: help
 
-# Build lunet with xmake (canonical release profile)
+# Fetch official Lunet binary release and sync types
 build:
-	@echo "Building lunet..."
-	cd $(LUNET_DIR) && xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y && xmake build
-	cd $(LUNET_DIR) && xmake build lunet-sqlite3
-	@echo "Build complete. Lunet binary: $(shell find $(LUNET_DIR)/build -path '*/release/lunet-run*' -type f 2>/dev/null | head -1)"
+	@if [ -z "$(LUA_CMD)" ]; then \
+		echo "ERROR: lua or luajit interpreter not found on PATH" >&2; \
+		exit 1; \
+	fi
+	@"$(LUA_CMD)" "$(FETCHER)" >/dev/null
+	@rm -rf types && cp -r .lunet/$(LUNET_VERSION)/types types
+	@echo "Build complete. Lunet runner: $(LUNET_BIN)"
 
 # Run the MCP server (no tracing)
 run: build
-	$(LUNET_BIN) app/main.lua
+	@"$(LUNET_BIN)" app/main.lua
 
 # Run with info-level tracing
 run-info: build
-	MCP_TRACE=info $(LUNET_BIN) app/main.lua
+	@MCP_TRACE=info "$(LUNET_BIN)" app/main.lua
 
 # Run with debug-level tracing
 run-debug: build
-	MCP_TRACE=debug $(LUNET_BIN) app/main.lua
+	@MCP_TRACE=debug "$(LUNET_BIN)" app/main.lua
 
 # Run with full tracing
 run-trace: build
-	MCP_TRACE=trace $(LUNET_BIN) app/main.lua
+	@MCP_TRACE=trace "$(LUNET_BIN)" app/main.lua
 
 # Run with custom port
 run-port: build
-	PORT=$(PORT) $(LUNET_BIN) app/main.lua
+	@PORT=$(PORT) "$(LUNET_BIN)" app/main.lua
 
-# Test the server (must be running) - with timeout
+# Test the server (must be running)
 test:
 	@echo "Testing server info endpoint..."
 	@curl -s --max-time 5 http://localhost:8080/ || echo "ERROR: Server not responding"
-	@echo ""
 	@echo ""
 	@echo "Testing SSE endpoint (3 seconds)..."
 	@curl -sN --max-time 3 http://localhost:8080/sse || true
@@ -68,41 +76,41 @@ stress-shell:
 	@echo ""
 	@echo "Done"
 
-# Lua stress test (server must be running) - with timeout
+# Lua stress test (server must be running)
 stress: build
 ifneq ($(TIMEOUT_CMD),)
-	$(TIMEOUT_CMD) 60 $(LUNET_BIN) test/stress_mcp.lua || echo "Stress test timed out or failed"
+	@$(TIMEOUT_CMD) 60 "$(LUNET_BIN)" test/stress_mcp.lua || echo "Stress test timed out or failed"
 else
 	@echo "WARNING: No timeout command available, running without timeout"
-	$(LUNET_BIN) test/stress_mcp.lua
+	@"$(LUNET_BIN)" test/stress_mcp.lua
 endif
 
-# Memory benchmark (starts its own server) - with timeout
+# Memory benchmark (starts its own server)
 bench: build
 ifneq ($(TIMEOUT_CMD),)
-	$(TIMEOUT_CMD) 30 $(LUNET_BIN) test/bench_memory.lua || echo "Benchmark timed out or failed"
+	@$(TIMEOUT_CMD) 30 "$(LUNET_BIN)" test/bench_memory.lua || echo "Benchmark timed out or failed"
 else
 	@echo "WARNING: No timeout command available, running without timeout"
-	$(LUNET_BIN) test/bench_memory.lua
+	@"$(LUNET_BIN)" test/bench_memory.lua
 endif
 
 # Run benchmark with more clients
 bench-heavy: build
 ifneq ($(TIMEOUT_CMD),)
-	BENCH_CLIENTS=100 BENCH_REQUESTS=50 $(TIMEOUT_CMD) 60 $(LUNET_BIN) test/bench_memory.lua || echo "Heavy benchmark timed out or failed"
+	@BENCH_CLIENTS=100 BENCH_REQUESTS=50 $(TIMEOUT_CMD) 60 "$(LUNET_BIN)" test/bench_memory.lua || echo "Heavy benchmark timed out or failed"
 else
-	BENCH_CLIENTS=100 BENCH_REQUESTS=50 $(LUNET_BIN) test/bench_memory.lua
+	@BENCH_CLIENTS=100 BENCH_REQUESTS=50 "$(LUNET_BIN)" test/bench_memory.lua
 endif
 
-# Clean build artifacts
+# Clean temporary files
 clean:
 	rm -rf .tmp/*.log
 	@echo "Cleaned temporary files"
 
-# Deep clean (including lunet build)
+# Deep clean (including fetched runtime and types)
 clean-all: clean
-	cd $(LUNET_DIR) && xmake clean 2>/dev/null || true
-	@echo "Cleaned all build artifacts"
+	rm -rf .lunet types
+	@echo "Cleaned all build artifacts and runtime binaries"
 
 # Show help
 help:
@@ -112,7 +120,7 @@ help:
 	@echo "A demo MCP-SSE server exposing Tavily search via the Lunet framework."
 	@echo ""
 	@echo "Usage:"
-	@echo "  make build       - Build the lunet runtime"
+	@echo "  make build       - Fetch official Lunet binary release ($(LUNET_VERSION))"
 	@echo "  make run         - Start the MCP server (port 8080)"
 	@echo "  make run-info    - Start with info-level tracing"
 	@echo "  make run-debug   - Start with debug-level tracing"
@@ -124,17 +132,14 @@ help:
 	@echo "  make stress      - Run Lua stress test (server must be running)"
 	@echo "  make bench       - Run Lua memory benchmark"
 	@echo "  make clean       - Clean temporary files"
-	@echo "  make clean-all   - Clean all including lunet build"
+	@echo "  make clean-all   - Clean all including fetched Lunet runtime and types"
 	@echo ""
 	@echo "Environment:"
+	@echo "  LUNET_VERSION    - Lunet release tag (default: $(LUNET_VERSION))"
 	@echo "  TAVILY_API_KEY   - Your Tavily API key (in .env file)"
 	@echo "  PORT             - Server port (default 8080)"
 	@echo "  MCP_TRACE        - Trace level: off|error|warn|info|debug|trace"
 	@echo "  MCP_TRACE_FILE   - Trace output file (default: stderr)"
-	@echo ""
-	@echo "Tracing Examples:"
-	@echo "  MCP_TRACE=info make run     # Info-level tracing"
-	@echo "  MCP_TRACE=debug make run    # Debug-level tracing"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  1. Create .env with TAVILY_API_KEY=your_key"

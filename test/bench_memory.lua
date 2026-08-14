@@ -7,7 +7,7 @@
 --
 -- Usage:
 --   make bench
---   # or: LUNET_BIN=$(find ../lunet/build -path '*/release/lunet-run*' -type f | head -1) && $LUNET_BIN test/bench_memory.lua
+
 --
 -- Environment:
 --   BENCH_PORT      - Server port (default 8081, different to avoid conflicts)
@@ -372,14 +372,19 @@ local function load_client(client_id)
     
     local sse_req = "GET /sse HTTP/1.1\r\nHost: " .. HOST .. "\r\nConnection: keep-alive\r\n\r\n"
     socket.write(client, sse_req)
-    local resp = socket.read(client)
-    if not resp then
-        socket.close(client)
-        stats.errors = stats.errors + 1
-        return
+    local resp = ""
+    local session_id = nil
+    for _ = 1, 10 do
+        local chunk = socket.read(client)
+        if not chunk or #chunk == 0 then
+            break
+        end
+        resp = resp .. chunk
+        session_id = resp:match("session=([%w]+)")
+        if session_id then
+            break
+        end
     end
-    
-    local session_id = resp:match("session=([%w]+)")
     if not session_id then
         socket.close(client)
         stats.errors = stats.errors + 1
@@ -438,19 +443,24 @@ lunet.spawn(function()
     end
     
     -- Accept connections
-    local start_time = os.time()
-    while os.time() - start_time < DURATION_SEC do
-        local client = socket.accept(listener)
-        if client then
-            lunet.spawn(function() handle_client(client) end)
+    lunet.spawn(function()
+        while true do
+            local client = socket.accept(listener)
+            if client then
+                lunet.spawn(function() handle_client(client) end)
+            end
         end
+    end)
+    
+    local start_time = os.time()
+    while completed < NUM_CLIENTS and os.time() - start_time < DURATION_SEC do
+        lunet.sleep(50)
     end
     
     -- Stop and report
     sampling = false
     lunet.sleep(200)
     
-    socket.close(listener)
     report()
     os.exit(stats.errors > 0 and 1 or 0)
 end)

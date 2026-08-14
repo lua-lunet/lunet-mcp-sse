@@ -1,6 +1,6 @@
 # lunet-mcp-sse
 
-[![Lunet v0.1.2](https://img.shields.io/badge/Lunet-v0.1.2-blue?logo=lua&logoColor=white)](https://github.com/lua-lunet/lunet/releases/tag/v0.1.2)
+[![Lunet v0.9.2](https://img.shields.io/badge/Lunet-v0.9.2-blue?logo=lua&logoColor=white)](https://github.com/lua-lunet/lunet/releases/tag/v0.9.2)
 
 A minimal MCP (Model Context Protocol) server demonstrating Tavily web search via SSE transport, built on the [Lunet](https://github.com/lua-lunet/lunet) framework.
 
@@ -51,6 +51,9 @@ Pre-built binaries are available from [GitHub Releases](https://github.com/lua-l
 ### macOS (arm64)
 
 ```bash
+# Install dependencies
+brew install luajit libuv zlib curl
+
 # Download and extract
 curl -L -o lunet-mcp-sse-macos.tar.gz \
   https://github.com/lua-lunet/lunet-mcp-sse/releases/download/nightly/lunet-mcp-sse-macos.tar.gz
@@ -68,7 +71,7 @@ echo "TAVILY_API_KEY=your_key_here" > .env
 ```bash
 # Install dependencies
 sudo apt-get update
-sudo apt-get install -y libuv1 libluajit-5.1-2 curl
+sudo apt-get install -y libuv1 libluajit-5.1-2 libcurl4 zlib1g curl
 
 # Download and extract (use arm64 or amd64 as appropriate)
 curl -L -o lunet-mcp-sse-linux-arm64.tar.gz \
@@ -104,7 +107,7 @@ You can run the Linux binary in a Docker container. This is useful for testing o
 docker run -d --name mcp-server -p 8080:8080 \
   -v /path/to/extracted/linux-app:/app -w /app \
   debian:trixie-slim \
-  /bin/bash -c 'apt-get update -qq && apt-get install -y -qq libuv1 libluajit-5.1-2 curl >/dev/null 2>&1 && export $(cat .env | xargs) && HOST=0.0.0.0 ./bin/lunet --dangerously-skip-loopback-restriction app/main.lua'
+  /bin/bash -c 'apt-get update -qq && apt-get install -y -qq libuv1 libluajit-5.1-2 libcurl4 zlib1g curl >/dev/null 2>&1 && export $(cat .env | xargs) && HOST=0.0.0.0 ./bin/lunet-run --dangerously-skip-loopback-restriction app/main.lua'
 
 # Test
 curl http://localhost:8080/
@@ -138,7 +141,7 @@ echo "TAVILY_API_KEY=your_key_here" | colima ssh -- tee /tmp/testapp/.env
 docker run -d --name mcp-server -p 8080:8080 \
   -v /tmp/testapp:/app -w /app \
   debian:trixie-slim \
-  /bin/bash -c 'apt-get update -qq && apt-get install -y -qq libuv1 libluajit-5.1-2 curl >/dev/null 2>&1 && export $(cat .env | xargs) && HOST=0.0.0.0 ./bin/lunet --dangerously-skip-loopback-restriction app/main.lua'
+  /bin/bash -c 'apt-get update -qq && apt-get install -y -qq libuv1 libluajit-5.1-2 libcurl4 zlib1g curl >/dev/null 2>&1 && export $(cat .env | xargs) && HOST=0.0.0.0 ./bin/lunet-run --dangerously-skip-loopback-restriction app/main.lua'
 
 # Test from macOS
 curl http://localhost:8080/
@@ -216,27 +219,43 @@ Search the web using Tavily AI search engine.
 | `MCP_TRACE` | off | Trace level (off/error/warn/info/debug/trace) |
 | `MCP_TRACE_FILE` | stderr | Output file for traces |
 
-## Building from Source
+## Development and Running
 
-Requires [xmake](https://xmake.io/) and Lunet v0.1.2+. See [XMAKE_INTEGRATION.md](https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md) for the canonical integration guide.
+Consumes official pre-built Lunet v0.9.2 release archives via the vendored fetcher script.
+
+### Prerequisites
+
+- Host tool: `lua` (5.1+ or LuaJIT) for running the fetcher
+- Runtime libraries:
+  - **macOS**: `brew install luajit libuv zlib curl`
+  - **Linux (Debian/Ubuntu)**: `sudo apt-get install -y libuv1 libluajit-5.1-2 libcurl4 zlib1g`
+
+### Fetch and Run Workflow
 
 ```bash
-# Clone the lua-lunet org repos (lunet-mcp-sse requires sibling lunet repo)
-mkdir lua-lunet && cd lua-lunet
-git clone https://github.com/lua-lunet/lunet.git
+# Clone the repository
 git clone https://github.com/lua-lunet/lunet-mcp-sse.git
-
-# Build lunet with xmake (canonical release profile)
-cd lunet
-xmake f -m release --lunet_trace=n --lunet_verbose_trace=n -y
-xmake build
-xmake build lunet-sqlite3
-cd ..
-
-# Run
 cd lunet-mcp-sse
+
+# Fetch pre-built Lunet v0.9.2 runtime and type definitions
+make build
+
+# Configure API key
 echo "TAVILY_API_KEY=your_key_here" > .env
+
+# Run the MCP server
 make run
+```
+
+### Editor & Type Support
+
+The fetcher populates `types/` with type definitions. Configure `.luarc.json` for LuaCATS and Teal editor navigation and type checking:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
+  "workspace.library": ["types"]
+}
 ```
 
 ## Zero-Cost Tracing
@@ -274,3 +293,7 @@ This tests against:
 ## License
 
 MIT
+
+---
+
+> This project uses [Lunet](https://github.com/lua-lunet/lunet), which is based on [xialeistudio/lunet](https://github.com/xialeistudio/lunet) by [夏磊 (Xia Lei)](https://github.com/xialeistudio). See also his excellent write-up: [Lunet: Design and Implementation of a High-Performance Coroutine Network Library](https://www.ddhigh.com/en/2025/07/12/lunet-high-performance-coroutine-network-library/).

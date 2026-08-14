@@ -4,6 +4,9 @@
 
 # Build artifacts
 build/
+.lunet/
+types/
+.xmake/
 *.o
 *.so
 *.dylib
