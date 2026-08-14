@@ -1,10 +1,16 @@
 # Agent Notes: lunet-mcp-sse
 
-This repo consumes Lunet via a repo-local git submodule at `deps/lunet`, following the official Lunet xmake integration guide:
-https://github.com/lua-lunet/lunet/blob/main/docs/XMAKE_INTEGRATION.md
+This repository consumes the official Lunet runtime as a pinned binary release (`v0.9.2`) via the vendored fetcher script (`scripts/lunet_fetch_release_v0.9.2.lua`).
 
-Rules
+## Rules & Workflow
 
 - Do not use or write to a sibling checkout like `../lunet`.
-- If Lunet needs changes: open a PR in `lua-lunet/lunet` first, then bump the `deps/lunet` submodule pointer in a separate PR here.
-- Initialize deps before building: `git submodule update --init --recursive`.
+- If Lunet needs changes: open a PR in `lua-lunet/lunet` first.
+- The Lunet runtime is consumed as a pinned binary release (`v0.9.2`), not built from source or submodules.
+- How to bump version:
+  1. Update the pinned version in `Makefile`.
+  2. Update/vendor the upstream fetcher script (`scripts/lunet_fetch_release_v<version>.lua`) from the upstream release assets.
+- Build and editor artifacts:
+  - `.lunet/` (runtime binaries and shared libraries) and `types/` (LuaCATS/Teal type definitions) are downloaded on demand via `make build` / the fetcher script.
+  - `.lunet/` and `types/` MUST NEVER be committed to version control.
+

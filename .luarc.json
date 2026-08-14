@@ -1,0 +1,10 @@
+{
+  "workspace.library": [
+    "types"
+  ],
+  "workspace.ignoreDir": [
+    ".lunet",
+    ".tmp"
+  ],
+  "runtime.version": "LuaJIT"
+}

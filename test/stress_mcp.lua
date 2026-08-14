@@ -129,23 +129,28 @@ local function test_session(client_id)
     stats.requests = stats.requests + 1
     
     -- Read the SSE response to get session ID
-    local response = socket.read(client)
-    if not response then
-        socket.close(client)
-        stats.errors = stats.errors + 1
-        return false, "no SSE response"
+    local response = ""
+    local session_id = nil
+    for _ = 1, 10 do
+        local chunk = socket.read(client)
+        if not chunk or #chunk == 0 then
+            break
+        end
+        stats.bytes_recv = stats.bytes_recv + #chunk
+        response = response .. chunk
+        session_id = response:match("session=([%w]+)")
+        if session_id then
+            break
+        end
     end
     
-    stats.bytes_recv = stats.bytes_recv + #response
-    stats.responses = stats.responses + 1
-    
-    -- Extract session ID from endpoint event
-    local session_id = response:match("session=([%w]+)")
     if not session_id then
         socket.close(client)
         stats.errors = stats.errors + 1
-        return false, "no session ID in response"
+        return false, (#response == 0 and "no SSE response" or "no session ID in response")
     end
+    
+    stats.responses = stats.responses + 1
     
     -- Send initialize request
     local init_body = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"stress-test","version":"1.0"}}}'
